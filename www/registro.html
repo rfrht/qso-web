@@ -1,0 +1,106 @@
+<html>
+<head>
+<title>Sistema de Registro de QSOs</title>
+</head>
+
+<script type="text/javascript">
+function yesnoCheck() {
+    if (document.getElementById('yesCheck').checked) {
+        document.getElementById('ifYes').style.visibility = 'visible';
+    }
+    else document.getElementById('ifYes').style.visibility = 'hidden';
+}
+</script>
+
+<body bgcolor="#ffbd00">
+<table border="0" width="100%" cellpadding="2" cellspacing="1" bgcolor="#ffbd00">
+<tr>
+<tr><td bgcolor="#FF7F00" valign="middle">
+
+<table width="100%">
+<tr>
+<td valign="center">
+<font face="verdana" size="+2" color="white"><b>Sistema de Registro de QSOs</b> </font><br>
+<font face="verdana" size="+1" color="white"><b>PY2-RAF</font>
+</td>
+
+<td valign="center" align="right">
+</td></tr>
+</table>
+</table>
+
+<p>
+<font face="verdana">
+
+<small></small>
+<p>
+<table border="0" width="60%">
+<tr><td>
+<form action="/cgi-bin/registra.cgi" method="POST">
+
+Indicativo:<br>
+<input type="TEXT" name="indic" maxlength="7"><br>
+<br>
+
+QRA:<br>
+<input type="TEXT" name="qra" maxlength="20"><br>
+<br>
+
+QRG: (MHz)<br>
+<input type="TEXT" name="qrg" value=""Ff maxlength="7"><br>
+<br>
+
+OBS:<BR>
+<input type="TEXT" name="obs" value="" maxlength="40"><br>
+<br>
+
+POT&Ecirc;NCIA (W):<BR>
+<input type="TEXT" name="potencia" value="15" maxlength="4"><br>
+<br>
+
+MODO:<BR>
+<input type="radio" name="modo" value="FM">FM
+<input type="radio" name="modo" value="SSB">SSB
+<input type="radio" name="modo" value="FT8">FT-8
+<input type="radio" name="modo" value="AM">AM
+<input type="radio" name="modo" value="CW">CW
+<BR>
+
+RST: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCheck" value="RST">Exibir
+<BR>
+
+<div id="ifYes" style="visibility:hidden">
+	<table border=0>
+        <tr><td>Nivel RX:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td></tr>
+        <tr><td>Report TX:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
+	</table>
+</div>
+
+<P>
+<input type="SUBMIT" value="Registra"></form>
+</td><td>&nbsp;&nbsp;ou&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+
+<td>
+<form action="https://sistemas.anatel.gov.br/easp/Novo/ConsultaIndicativo/Tela.asp" target=_blank method=post>
+<input type="TEXT" name="pIndicativo" placeholder="Anatel">
+<input type="hidden" name="acao" value="e">
+<p><input type="submit" value="Consulta">
+</form>
+
+<BR><BR><BR><BR>
+
+<form action="https://www.qrz.com/lookup" method="post" target=_blank>
+<input id="tquery" name="tquery" type="text" maxlength="60" value="" placeholder="QRZ"/>
+<P><input id="tsubmit" type="submit" value="Search" />
+</form>
+
+</td>
+</TR>
+
+
+</table>
+
+<a href="/cgi-bin/lista-qso.cgi">Lista QSOs</a>
+<P>
+<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>QRA</td><td><b>QTR (GMT)</td><td><b>RMKs</td><td><b>Modo</td><td><b>Serial</td></tr>
+
