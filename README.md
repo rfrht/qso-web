@@ -5,7 +5,7 @@ This is a Shell-Script, web-based QSO logging tool.
 
 It features automatic QRZ, eQSL and HRDLog automatic contact upload, as well configurable skip-frequencies, where you don't want the records logged.
 
-The access control is provided by the .htaccess file in the `registra.cgi` CGI file, which actually writes the new records.
+The access control is provided by the `.htaccess` policy file to the `registra.cgi` CGI file, which actually writes the new records.
 
 ## Samples
 
