@@ -39,7 +39,7 @@ function yesnoCheck() {
 <form action="/cgi-bin/registra.cgi" method="POST">
 
 Indicativo:<br>
-<input type="TEXT" name="indic" maxlength="7"><br>
+<input type="TEXT" name="indic" maxlength="9"><br>
 <br>
 
 QRA:<br>
@@ -71,8 +71,8 @@ RST: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCh
 
 <div id="ifYes" style="visibility:hidden">
 	<table border=0>
-        <tr><td>Nivel RX:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td></tr>
-        <tr><td>Report TX:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
+	 <tr><td>O colega me recebeu a:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
+        <tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td></tr>
 	</table>
 </div>
 
