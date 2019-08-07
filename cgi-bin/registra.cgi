@@ -95,10 +95,13 @@ tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 
 
 ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<eor>")
 
-EQSLMSG="TNX for QSO - ANT $ANTENNA1 - TX $TX_POWER W - QSO NR $SERIAL - QRZ/LOTW OK - 73s o/"
+ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<EOR>")
+
+EQSLMSG="TNX 4 QSO $QRA - ANT $ANTENNA1 - TX $TX_POWER W - SERnr $SERIAL - QRZ/LOTW OK - 73s o/"
 ADIF_EQSL=$(echo "ADIFData=Test upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<eor>")
 
 ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<EOR>")
+
 
 # Only logs QSO if not a blacklisted QRG
 if ! [[ $SKIP_LOG == *$QRG* ]] ; then
@@ -109,13 +112,19 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
       echo "QRZ OK<BR>"
    fi
 
+   if ! curl -d "$ADIF_CLUBLOG" -X POST https://clublog.org/realtime.php | grep "OK" >/dev/null ; then
+      echo "<P>Problemas ao incluir no ClubLog</P>"
+      echo $ADIF_CLUBLOG >> $CLUBLOG_ERRLOG
+   else
+      echo "ClubLog OK<BR>"
+   fi
+
    if ! curl -d "$ADIF_HRD" -X POST http://robot.hrdlog.net/NewEntry.aspx | grep "<id>" >/dev/null ; then 
       echo "<P>Problemas ao incluir no HRDLog</P>"
       echo $ADIF_HRD >> $HRD_ERRLOG
    else
       echo "HRDLog OK<BR>"
    fi
-
 
    if ! curl -d "$ADIF_EQSL" -X POST https://www.eQSL.cc/qslcard/ImportADIF.cfm | grep "Result: 1" >/dev/null ; then 
       echo "<P>Problemas ao incluir no EQSL</P>"
