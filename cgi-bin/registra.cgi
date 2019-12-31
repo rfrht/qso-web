@@ -7,7 +7,7 @@ echo ""
 urldecode() { echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"; }
 
 # Source config stuff
-source /etc/qso.conf
+source /etc/qso/qso.conf
 
 # Calculate serial number
 LOG_RECORDS=$(wc -l $QSO_LOGFILE | awk '{print $1}')
@@ -17,7 +17,7 @@ let SERIAL=PRECOUNT+LOG_RECORDS+1
 read -N $CONTENT_LENGTH QUERY_STRING_POST
 QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
 QRG=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
-CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:alnum:]' | cut -b -9 | tr "[:lower:]" "[:upper:]" )
+CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 | tr "[:lower:]" "[:upper:]" )
 QRA=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 QTR=$(TZ=UTC date +%c)
 OBS=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
@@ -61,28 +61,44 @@ else
      exit 0
 fi
 
+# Proper antenna selection
+if [[ $BAND == "2m" || $BAND == "70cm" ]] ; then
+   ANTENNA=$ANTENNA1
+else
+   ANTENNA=$ANTENNA2
+fi
+
 # Stop logging if missing essential fields
-if [[ -z $QRG || -z $CALLSIGN || -z $MODE ]] ; then
+if [[ -z $QRG || -z $CALLSIGN || -z $MODE ]] || [[ ( -z $RST_R || -z $RST_T ) && $MODE == "FT8" ]] ; then
    echo "<h1>FALTOU CAMPO ESSENCIAL</h1>"
    # Reuse this QSO data in new contact form
    cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
    # List last 20 contacts
-   tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td></tr>"}'
+   tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
    exit 0
+fi
+
+# Calculate propagation mode
+FREQKC=$(echo $QRG | tr -dc '[:digit:]') 
+# Repeaters
+if [[ $FREQKC -ge 145200 && $FREQKC -le 145500 ]] ||
+   [[ $FREQKC -ge 146600 && $FREQKC -le 147400 ]]
+then
+   PROP_MODE="RPT" 
 fi
 
 if [ -z $RST_R ] ; then
    OBS=$(echo QRA $QRA - $OBS )
 else
    if [ $MODE == "FT8" ] ; then
-      OBS=$(echo "QRA $QRA-$OBS-RST R $RST_R dB-RST T $RST_T dB")
+      OBS=$(echo "QRA $QRA-$OBS-RST R $RST_R dB T $RST_T dB")
    else
-      OBS=$(echo "QRA $QRA-$OBS-RST R $RST_R-RST T $RST_T")
+      OBS=$(echo "QRA $QRA-$OBS-RST R $RST_R T $RST_T")
    fi
 fi
 
 # Logs the entry locally
-if ! echo $QRG,$CALLSIGN,$QRA,$QTR,$OBS,$MODE,$SERIAL >> $QSO_LOGFILE ; then
+if ! echo $QRG,$CALLSIGN,$QRA,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
    echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
    exit 1
 fi
@@ -91,47 +107,117 @@ fi
 cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
 
 # List last 20 contacts
-tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td></tr>"}'
+tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
 
-ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<eor>")
+# === 3RD PARTY SYSTEM LOG - String prep ===
+# QRZ
+ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<eor>")
 
-ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<EOR>")
+# ClubLog
+ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<EOR>")
 
-EQSLMSG="TNX 4 QSO $QRA - ANT $ANTENNA1 - TX $TX_POWER W - SERnr $SERIAL - QRZ/LOTW OK - 73s o/"
-ADIF_EQSL=$(echo "ADIFData=Test upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<eor>")
+# HRDLog
+ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<EOR>")
 
-ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<EOR>")
+# EQSL
+EQSLMSG="TNX 4 QSO $QRA - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73s o/"
+ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<eor>")
 
+# LotW
+if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
+  LOTW_STRIPPED_CERT=$(grep -v "\-\-\-" $LOTW_CERT)
+  LOTW_QSO_DATE=$(TZ=UTC date +%F)
+  LOTW_QSO_QTR=$(TZ=UTC date +%TZ)
+  LOTW_SIGN_DATA=$(echo -n "$LOTW_CQZ$GRID$LOTW_ITUZ$BAND$CALLSIGN$QRG$MODE$FREQ$LOTW_QSO_DATE$LOTW_QSO_QTR")
+  LOTW_SIGNATURE=$(echo -n "$LOTW_SIGN_DATA" | openssl dgst -sha1 -sign $LOTW_KEY -passin "pass:$LOTW_KEY_PASS" | base64)
+  ADIF_LOTW=$(echo "<TQSL_IDENT:53>TQSL V2.5.1 Lib: V2.5 Config: V11.9 AllowDupes: false
+
+<Rec_Type:5>tCERT
+<CERT_UID:1>1
+<CERTIFICATE:${#LOTW_STRIPPED_CERT}>$LOTW_STRIPPED_CERT
+<eor>
+
+<Rec_Type:8>tSTATION
+<STATION_UID:1>1
+<CERT_UID:1>1
+<CALL:${#MY_CALLSIGN}>$MY_CALLSIGN
+<DXCC:${#LOTW_DXCC}>$LOTW_DXCC
+<GRIDSQUARE:${#GRID}>$GRID
+<ITUZ:${#LOTW_ITUZ}>$LOTW_ITUZ
+<CQZ:${#LOTW_CQZ}>$LOTW_CQZ
+<eor>
+
+<Rec_Type:8>tCONTACT
+<STATION_UID:1>1
+<CALL:${#CALLSIGN}>$CALLSIGN
+<BAND:${#BAND}>$BAND
+<MODE:${#MODE}>$MODE
+<FREQ:${#QRG}>$QRG
+<QSO_DATE:${#LOTW_QSO_DATE}>$LOTW_QSO_DATE
+<QSO_TIME:${#LOTW_QSO_QTR}>$LOTW_QSO_QTR
+<SIGN_LOTW_V2.0:${#LOTW_SIGNATURE}:6>$LOTW_SIGNATURE
+<SIGNDATA:${#LOTW_SIGN_DATA}>$LOTW_SIGN_DATA
+<eor>
+")
+
+  echo "$ADIF_LOTW" > /dev/shm/lotw-$MY_CALLSIGN
+  gzip -f -S .tq8 /dev/shm/lotw-$MY_CALLSIGN
+fi
 
 # Only logs QSO if not a blacklisted QRG
 if ! [[ $SKIP_LOG == *$QRG* ]] ; then
-   if ! curl -d "$ADIF_QRZ" -X POST https://logbook.qrz.com/api | grep "RESULT=OK" >/dev/null ; then 
+
+## And only logs if clauses are properly populated.
+## QRZ
+  if [[ -n $QRZ_KEY ]] ; then
+   if ! curl -d "$ADIF_QRZ" -X POST https://logbook.qrz.com/api | grep "RESULT=OK" >/dev/shm/transaction-qrz.log ; then 
       echo "<P>Problemas ao incluir no QRZ</P>"
       echo $ADIF_QRZ >> $QRZ_ERRLOG
    else
       echo "QRZ OK<BR>"
    fi
+  fi
 
-   if ! curl -d "$ADIF_CLUBLOG" -X POST https://clublog.org/realtime.php | grep "OK" >/dev/null ; then
+## ClubLog
+  if [[ -n $CLUBLOG_EMAIL && -n $CLUBLOG_KEY && -n $CLUBLOG_APP_PASS ]] ; then
+   if ! curl -d "$ADIF_CLUBLOG" -X POST https://clublog.org/realtime.php | grep "OK" >/dev/shm/transaction-clublog.log ; then
       echo "<P>Problemas ao incluir no ClubLog</P>"
       echo $ADIF_CLUBLOG >> $CLUBLOG_ERRLOG
    else
       echo "ClubLog OK<BR>"
    fi
+  fi
 
-   if ! curl -d "$ADIF_HRD" -X POST http://robot.hrdlog.net/NewEntry.aspx | grep "<id>" >/dev/null ; then 
+## HRDLog
+  if [[ ! -z $HRD_USER && ! -z $HRD_KEY ]] ; then
+   if ! curl -d "$ADIF_HRD" -X POST http://robot.hrdlog.net/NewEntry.aspx | grep "<id>" >/dev/shm/transaction-hrdlog.log ; then 
       echo "<P>Problemas ao incluir no HRDLog</P>"
       echo $ADIF_HRD >> $HRD_ERRLOG
    else
       echo "HRDLog OK<BR>"
    fi
+  fi
 
-   if ! curl -d "$ADIF_EQSL" -X POST https://www.eQSL.cc/qslcard/ImportADIF.cfm | grep "Result: 1" >/dev/null ; then 
+## EQSL
+  if [[ ! -z $EQSL_USER && ! -z $EQSL_PASS ]] ; then
+   if ! curl -d "$ADIF_EQSL" -X POST https://www.eQSL.cc/qslcard/ImportADIF.cfm | grep "Result: 1" >/dev/shm/transaction-eqsl.log ; then 
       echo "<P>Problemas ao incluir no EQSL</P>"
       echo $ADIF_EQSL >> $EQSL_ERRLOG
    else
       echo "eQSL OK<BR>"
    fi
+  fi
+
+## LotW
+if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
+   if ! curl -F "upfile=@/dev/shm/lotw-$MY_CALLSIGN.tq8" https://lotw.arrl.org/lotw/upload | grep -i "file queued for processing" >/dev/shm/transaction-lotw.log ; then
+      echo "<P>Problemas ao incluir no LotW</P>"
+      mv /dev/shm/lotw-$MY_CALLSIGN.tq8 /dev/shm/failed-lotw-$MY_CALLSIGN-$LOTW_QSO_DATE$LOTW_QSO_QTR.tq8
+    else
+      echo "LotW OK<BR>"
+    fi
+   fi
+
 fi
 
 echo "</table>

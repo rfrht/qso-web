@@ -3,7 +3,7 @@
 echo "Content-type: text/html"
 echo ""
 
-source /etc/qso.conf
+source /etc/qso/qso.conf
 
 echo "
 <html>
@@ -16,7 +16,7 @@ TZ='America/Sao_Paulo' date ; echo "<P>"
 
 cat $PAGE_HEADER
 
-tac $QSO_LOGFILE | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><td>" $6 "</td><TD>" $7 "</td></tr>"}'
+tac $QSO_LOGFILE | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><td>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
 
 echo "</table>
 </body>

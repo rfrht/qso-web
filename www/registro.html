@@ -39,7 +39,7 @@ function yesnoCheck() {
 <form action="/cgi-bin/registra.cgi" method="POST">
 
 Indicativo:<br>
-<input type="TEXT" name="indic" maxlength="9"><br>
+<input type="TEXT" name="indic" maxlength="15"><br>
 <br>
 
 QRA:<br>
@@ -62,6 +62,8 @@ MODO:<BR>
 <input type="radio" name="modo" value="FM">FM
 <input type="radio" name="modo" value="SSB">SSB
 <input type="radio" name="modo" value="FT8">FT-8
+<input type="radio" name="modo" value="FT4">FT-4
+<input type="radio" name="modo" value="C4FM">C4FM
 <input type="radio" name="modo" value="AM">AM
 <input type="radio" name="modo" value="CW">CW
 <BR>
@@ -71,8 +73,8 @@ RST: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCh
 
 <div id="ifYes" style="visibility:hidden">
 	<table border=0>
-	 <tr><td>O colega me recebeu a:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
-        <tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td></tr>
+	<tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td></tr>
+	<tr><td>O colega me recebeu a:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
 	</table>
 </div>
 
@@ -102,5 +104,5 @@ RST: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCh
 
 <a href="/cgi-bin/lista-qso.cgi">Lista QSOs</a>
 <P>
-<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>QRA</td><td><b>QTR (GMT)</td><td><b>RMKs</td><td><b>Modo</td><td><b>Serial</td></tr>
+<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>QRA</td><td><b>QTR (GMT)</td><td><b>RMKs</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td></tr>
 
