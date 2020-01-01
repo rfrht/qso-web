@@ -164,3 +164,5 @@ $ curl -F 'upfile=@lotw-PY2RAF.tq8' https://lotw.arrl.org/lotw/upload
 
 ### QSO list:
 [PY2RAF QSO List](https://rf3.org:8443/cgi-bin/lista-qso.cgi)
+
+![;-)](https://rf3.org:8443/q/wink-qso.png)
