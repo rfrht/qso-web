@@ -78,7 +78,7 @@ The highlights of the `tq8` file are:
 * Your contact
 
 ##### Variable content
-Your content. Namely:
+The contact information. Namely:
 * Callsign
 * Band
 * Mode
@@ -128,11 +128,36 @@ kwDIkIyjv6iMevwDfFeETP0XjHQziRiUC1Ol6YnCBl3GWQAX05Y8OxEpUx0fy6Tu
 8osQlV7rJ0YtvNmhPc/Fz7w79JdXqM2KVIxyUsy6tzM=
 <SIGNDATA:48>11GG66GM1570CMPY2XX439.480FAX2019-12-3110:00:00Z
 <eor>
-
 ~~~
 
+The data to be signed is defined in the following order, with no spaces:
+* Your CQ Zone
+* Your GRID
+* Your ITU Zone
+* Contact's BAND
+* Contact's CALLSIGN
+* Frequency
+* Mode
+* QSO Date (has strict format)
+* QSO Time (has strict format)
 
-## Samples
+#### Signing the content
+After you built the string to be hashed/signed, then sign it with your key. See the below sample:
+
+~~~
+$ echo $STRING-TO-BE-SIGNED | openssl dgst -sha1 -sign lotw-py2raf.key -passin 'pass:<password>' | base64
+~~~
+
+Pronto. Now you have prepared the signed content and the last step is build the file containing all the required fields, compact it, and upload to LOTW.
+
+#### Uploading to LOTW
+See the below sample curl
+
+~~~
+$ curl -F 'upfile=@lotw-PY2RAF.tq8' https://lotw.arrl.org/lotw/upload
+~~~
+
+## Sample UI
 
 ### Log record form:
 [PY2RAF Record form](https://rf3.org:8443/q/registro.html)
