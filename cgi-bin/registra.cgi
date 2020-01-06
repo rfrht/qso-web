@@ -9,10 +9,6 @@ urldecode() { echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"; }
 # Source config stuff
 source /etc/qso/qso.conf
 
-# Calculate serial number
-LOG_RECORDS=$(wc -l $QSO_LOGFILE | awk '{print $1}')
-let SERIAL=PRECOUNT+LOG_RECORDS+1
-
 # Read the form POST and sanitize it
 read -N $CONTENT_LENGTH QUERY_STRING_POST
 QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
@@ -27,6 +23,18 @@ RST_R=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' |
 RST_T=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 QSO_DATE=$(TZ=UTC date +%Y%m%d)
 QSO_TIME=$(TZ=UTC date +%H%M)
+
+# Calculate serial number
+LOG_RECORDS=$(wc -l $QSO_LOGFILE | awk '{print $1}')
+let SERIAL=PRECOUNT+LOG_RECORDS+1
+
+# Identify where I'm transmitting from. Sao Paulo or Sorocaba.
+# Happily overriding /etc/qso/qso.conf.
+if [[ $REMOTE_ADDR =~ "172.16." ]] ; then
+   GRID="GG66pk"
+else
+   GRID="GG66gm"
+fi
 
 # Sort out the band
 BAND=$(echo $QRG | awk -F . '{print $1}')
@@ -61,6 +69,15 @@ else
      exit 0
 fi
 
+# Calculate propagation mode
+FREQKC=$(echo $QRG | tr -dc '[:digit:]')
+# Repeaters
+if [[ $FREQKC -ge 145200 && $FREQKC -le 145500 ]] ||
+   [[ $FREQKC -ge 146600 && $FREQKC -le 147400 ]]
+then
+   PROP_MODE="RPT"
+fi
+
 # Proper antenna selection
 if [[ $BAND == "2m" || $BAND == "70cm" ]] ; then
    ANTENNA=$ANTENNA1
@@ -69,24 +86,28 @@ else
 fi
 
 # Stop logging if missing essential fields
-if [[ -z $QRG || -z $CALLSIGN || -z $MODE ]] || [[ ( -z $RST_R || -z $RST_T ) && $MODE == "FT8" ]] ; then
+if [[ -z $QRG || -z $CALLSIGN || -z $MODE ]] || 
+   [[ ( -z $RST_R || -z $RST_T ) && $MODE == "FT8" ]]
+then
    echo "<h1>FALTOU CAMPO ESSENCIAL</h1>"
    # Reuse this QSO data in new contact form
    cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
-   # List last 20 contacts
-   tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
+   exit 0
+# Avoids logging FM contacts in HF frequencies
+elif [[ $FREQKC -lt "29000" && $MODE == "FM" ]] ; then
+   echo "<h1>FM em HF?</h1>"
+   # Reuse this QSO data in new contact form
+   cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
+   exit 0
+# Avoids logging SSB contacts in high 2m frequencies
+elif [[ $FREQKC -gt "144800" && $FREQKC -lt "148000" && $MODE == "SSB" ]] ; then
+   echo "<h1>SSB em 2m?</h1>"
+   # Reuse this QSO data in new contact form
+   cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
    exit 0
 fi
 
-# Calculate propagation mode
-FREQKC=$(echo $QRG | tr -dc '[:digit:]') 
-# Repeaters
-if [[ $FREQKC -ge 145200 && $FREQKC -le 145500 ]] ||
-   [[ $FREQKC -ge 146600 && $FREQKC -le 147400 ]]
-then
-   PROP_MODE="RPT" 
-fi
-
+# Prepare the notes field, if the RST was provided or not.
 if [ -z $RST_R ] ; then
    OBS=$(echo QRA $QRA - $OBS )
 else
@@ -97,19 +118,10 @@ else
    fi
 fi
 
-# Logs the entry locally
-if ! echo $QRG,$CALLSIGN,$QRA,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
-   echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
-   exit 1
-fi
-
 # Reuse fields from this QSO to the next one
 cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
 
-# List last 20 contacts
-tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
-
-# === 3RD PARTY SYSTEM LOG - String prep ===
+# ===== 3RD PARTY SYSTEM LOG - String prep =====
 # QRZ
 ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<eor>")
 
@@ -164,7 +176,36 @@ if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW
   gzip -f -S .tq8 /dev/shm/lotw-$MY_CALLSIGN
 fi
 
-# Only logs QSO if not a blacklisted QRG
+if [ $DEBUG == 1 ] ; then
+   echo "Modo Debug - Testes escritos"
+   echo "$ADIF_QRZ" >> $QRZ_ERRLOG
+   echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
+   echo "$ADIF_HRD" >> $HRD_ERRLOG
+   echo "$ADIF_EQSL" >> $EQSL_ERRLOG
+   tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
+   exit 0
+fi
+
+# ===== LOG CONTACTS =====
+# Log it locally in CSV
+if ! echo $QRG,$CALLSIGN,$QRA,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
+   echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
+   exit 1
+fi
+
+# Show the last 20 after logging the CSV file
+tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
+
+# Logs the contact in SQLite DB
+if [[ -n $SQDB ]] ; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power) VALUES ('$QRG','$CALLSIGN','$QRA','$(date +%s)','$OBS','$MODE','$TX_POWER')" >/dev/shm/transaction-sqlite.log 2>&1; then
+    echo "<P>Problemas ao registrar o SQLite</p>"
+  else
+    echo "SQLite OK<BR>"
+  fi
+fi
+
+# Only logs QSOs externally if not a blacklisted QRG
 if ! [[ $SKIP_LOG == *$QRG* ]] ; then
 
 ## And only logs if clauses are properly populated.
