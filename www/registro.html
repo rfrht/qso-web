@@ -39,7 +39,7 @@ function yesnoCheck() {
 <form action="/cgi-bin/registra.cgi" method="POST">
 
 Indicativo:<br>
-<input type="TEXT" name="indic" maxlength="15"><br>
+<input type="TEXT" name="indic" maxlength="15" autofocus><br>
 <br>
 
 QRA:<br>
@@ -66,16 +66,19 @@ MODO:<BR>
 <input type="radio" name="modo" value="C4FM">C4FM
 <input type="radio" name="modo" value="AM">AM
 <input type="radio" name="modo" value="CW">CW
+<input type="radio" name="modo" value="SSTV">SSTV
 <BR>
 
-RST: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCheck" value="RST">Exibir
+Extras: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCheck" value="RST">Exibir
 <BR>
 
 <div id="ifYes" style="visibility:hidden">
-	<table border=0>
-	<tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td></tr>
-	<tr><td>O colega me recebeu a:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
-	</table>
+<table border=0>
+  <tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td>
+      <td>O colega me recebeu a:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
+  <tr><td>Data (YYYY-MM-DD):</td><TD><input type='text' maxlength=10 size=10 autocomplete='off' name='ALT_D'></td>
+      <td>Hora (HH:MM):</td><TD><input type='text' maxlength=5 size=5 autocomplete='off' name='ALT_T'></td></tr>
+</table>
 </div>
 
 <P>
@@ -83,13 +86,20 @@ RST: <input type="radio" name="RST" onclick="javascript:yesnoCheck();" id="yesCh
 </td><td>&nbsp;&nbsp;ou&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
 
 <td>
+<form action="/cgi-bin/conta-contatos.cgi" target=_blank method=post>
+<input type="TEXT" name="CALLSIGN" placeholder="Lista Contatos">
+<p><input type="submit" value="Consulta">
+</form>
+
+<BR><BR><BR>
+
 <form action="https://sistemas.anatel.gov.br/easp/Novo/ConsultaIndicativo/Tela.asp" target=_blank method=post>
 <input type="TEXT" name="pIndicativo" placeholder="Anatel">
 <input type="hidden" name="acao" value="e">
 <p><input type="submit" value="Consulta">
 </form>
 
-<BR><BR><BR><BR>
+<BR><BR><BR>
 
 <form action="https://www.qrz.com/lookup" method="post" target=_blank>
 <input id="tquery" name="tquery" type="text" maxlength="60" value="" placeholder="QRZ"/>

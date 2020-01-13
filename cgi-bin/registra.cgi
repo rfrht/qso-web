@@ -3,11 +3,11 @@
 echo "Content-type: text/html"
 echo ""
 
-# URL Decoder
-urldecode() { echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"; }
-
 # Source config stuff
 source /etc/qso/qso.conf
+
+# URL Decoder
+urldecode() { echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"; }
 
 # Read the form POST and sanitize it
 read -N $CONTENT_LENGTH QUERY_STRING_POST
@@ -15,25 +15,38 @@ QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
 QRG=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
 CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 | tr "[:lower:]" "[:upper:]" )
 QRA=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-QTR=$(TZ=UTC date +%c)
 OBS=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
 MODE=$(echo ${QS[5]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 RST_R=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 RST_T=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-QSO_DATE=$(TZ=UTC date +%Y%m%d)
-QSO_TIME=$(TZ=UTC date +%H%M)
+ALT_D=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
+ALT_T=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
+
+# Prepare the QSO date.
+if [[ -n $ALT_D && -n $ALT_T ]] ; then
+   EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
+else
+   EPOCH=$(TZ=UTC date +%s)
+fi
+
+if [ -z $EPOCH ] ; then echo "Erro de Data" ; exit 1 ; fi
+
+QTR=$(TZ=UTC date +%c --date="@$EPOCH")
+QSO_DATE=$(TZ=UTC date +%Y%m%d --date="@$EPOCH")
+QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
 
 # Calculate serial number
 LOG_RECORDS=$(wc -l $QSO_LOGFILE | awk '{print $1}')
 let SERIAL=PRECOUNT+LOG_RECORDS+1
 
 # Identify where I'm transmitting from. Sao Paulo or Sorocaba.
-# Happily overriding /etc/qso/qso.conf.
+# Happily overriding /etc/qso/qso.conf. Also adds a note on QSO field.
 if [[ $REMOTE_ADDR =~ "172.16." ]] ; then
    GRID="GG66pk"
 else
    GRID="GG66gm"
+   OBS="TX GG66GM-$OBS"
 fi
 
 # Sort out the band
@@ -138,8 +151,8 @@ ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_U
 # LotW
 if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
   LOTW_STRIPPED_CERT=$(grep -v "\-\-\-" $LOTW_CERT)
-  LOTW_QSO_DATE=$(TZ=UTC date +%F)
-  LOTW_QSO_QTR=$(TZ=UTC date +%TZ)
+  LOTW_QSO_DATE=$(TZ=UTC date +%F --date="@$EPOCH")
+  LOTW_QSO_QTR=$(TZ=UTC date +%TZ --date="@$EPOCH")
   LOTW_SIGN_DATA=$(echo -n "$LOTW_CQZ$GRID$LOTW_ITUZ$BAND$CALLSIGN$QRG$MODE$LOTW_QSO_DATE$LOTW_QSO_QTR")
   LOTW_SIGNATURE=$(echo -n "$LOTW_SIGN_DATA" | openssl dgst -sha1 -sign $LOTW_KEY -passin "pass:$LOTW_KEY_PASS" | base64)
   ADIF_LOTW=$(echo "<TQSL_IDENT:53>TQSL V2.5.1 Lib: V2.5 Config: V11.9 AllowDupes: false
@@ -198,7 +211,7 @@ tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 
 
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power) VALUES ('$QRG','$CALLSIGN','$QRA','$(date +%s)','$OBS','$MODE','$TX_POWER')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$QRA','$EPOCH','$OBS','$MODE','$TX_POWER','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"
@@ -230,7 +243,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
   fi
 
 ## HRDLog
-  if [[ ! -z $HRD_USER && ! -z $HRD_KEY ]] ; then
+  if [[ -n $HRD_USER && -n $HRD_KEY ]] ; then
    if ! curl -d "$ADIF_HRD" -X POST http://robot.hrdlog.net/NewEntry.aspx | grep "<id>" >/dev/shm/transaction-hrdlog.log ; then 
       echo "<P>Problemas ao incluir no HRDLog</P>"
       echo $ADIF_HRD >> $HRD_ERRLOG
@@ -240,7 +253,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
   fi
 
 ## EQSL
-  if [[ ! -z $EQSL_USER && ! -z $EQSL_PASS ]] ; then
+  if [[ -n $EQSL_USER && -n $EQSL_PASS ]] ; then
    if ! curl -d "$ADIF_EQSL" -X POST https://www.eQSL.cc/qslcard/ImportADIF.cfm | grep "Result: 1" >/dev/shm/transaction-eqsl.log ; then 
       echo "<P>Problemas ao incluir no EQSL</P>"
       echo $ADIF_EQSL >> $EQSL_ERRLOG
