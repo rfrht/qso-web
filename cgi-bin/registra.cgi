@@ -195,7 +195,10 @@ if [ $DEBUG == 1 ] ; then
    echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
    echo "$ADIF_HRD" >> $HRD_ERRLOG
    echo "$ADIF_EQSL" >> $EQSL_ERRLOG
-   tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
+   sqlite -separator ',' $SQDB "SELECT qrg, callsign, qra, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+                                WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
+   awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
+
    exit 0
 fi
 
@@ -206,17 +209,20 @@ if ! echo $QRG,$CALLSIGN,$QRA,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $Q
    exit 1
 fi
 
-# Show the last 20 after logging the CSV file
-tac $QSO_LOGFILE | head -n 20 | awk -F , '{printf  "<TR><TD>" $1 "</td><TD>" $2 "</td><TD>" $3 "</td><td>" $4 "</td><td>" $5 "</td><TD>" $6 "</td><TD>" $7 "</td><TD>" $8 "</td></tr>"}'
-
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$QRA','$EPOCH','$OBS','$MODE','$TX_POWER','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$QRA','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"
   fi
 fi
+
+# Show the last 20 after logging the Contact
+sqlite -separator ',' $SQDB "SELECT qrg, callsign, qra, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+                             WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
+awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
+
 
 # Only logs QSOs externally if not a blacklisted QRG
 if ! [[ $SKIP_LOG == *$QRG* ]] ; then
