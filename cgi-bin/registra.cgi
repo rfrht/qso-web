@@ -82,6 +82,11 @@ else
      exit 0
 fi
 
+# Detect wrong mode
+if [[ $RST_R =~ "+" || $RST_R =~ "-" ]] || [[ $RST_T =~ "+" || $RST_T =~ "-" ]] ; then
+   MODE=FT8
+fi
+
 # Calculate propagation mode
 FREQKC=$(echo $QRG | tr -dc '[:digit:]')
 # Repeaters
