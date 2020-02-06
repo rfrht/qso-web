@@ -23,15 +23,16 @@ RST_T=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' |
 ALT_D=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
 ALT_T=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
 
+# Bail if no proper mode is selected
+if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
+
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
    EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
 else
    EPOCH=$(TZ=UTC date +%s)
 fi
-
 if [ -z $EPOCH ] ; then echo "Erro de Data" ; exit 1 ; fi
-
 QTR=$(TZ=UTC date +%c --date="@$EPOCH")
 QSO_DATE=$(TZ=UTC date +%Y%m%d --date="@$EPOCH")
 QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
