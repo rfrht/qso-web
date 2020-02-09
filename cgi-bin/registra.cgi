@@ -26,6 +26,10 @@ ALT_T=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' 
 # Bail if no proper mode is selected
 if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
 
+# My transceiver is only capable of 40W in AM mode
+# Fails if logging more than 40W in AM
+if [[ TX_POWER -gt 40 && MODE=="AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
+
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
    EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
