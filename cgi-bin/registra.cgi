@@ -101,6 +101,10 @@ then
    PROP_MODE="RPT"
 fi
 
+# My transceiver is only capable of 50W in VHF and UHF
+# Fails if logging more than 50W V/UHF
+if [[ $TX_POWER -gt 50 && $FREQKC -ge 144000 ]] ; then echo "Mais de 50W em V/U?" ; exit 1 ; fi
+
 # Proper antenna selection
 if [[ $BAND == "2m" || $BAND == "70cm" ]] ; then
    ANTENNA=$ANTENNA1
