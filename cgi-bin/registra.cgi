@@ -26,6 +26,9 @@ ALT_T=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' 
 # Bail if no proper mode is selected
 if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
 
+# Check for impossible power modes
+if [[ $TX_POWER -lt 5 || $TX_POWER -gt 100 ]] ; then echo "Check Power - outside nominals" ; exit 1 ; fi
+
 # My transceiver is only capable of 40W in AM mode
 # Fails if logging more than 40W in AM
 if [[ $TX_POWER -gt 40 && $MODE == "AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
@@ -244,7 +247,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
 ## And only logs if clauses are properly populated.
 ## QRZ
   if [[ -n $QRZ_KEY ]] ; then
-   if ! curl -d "$ADIF_QRZ" -X POST https://logbook.qrz.com/api | grep "RESULT=OK" >/dev/shm/transaction-qrz.log ; then 
+   if ! curl -m 30 -d "$ADIF_QRZ" -X POST https://logbook.qrz.com/api | grep "RESULT=OK" >/dev/shm/transaction-qrz.log ; then 
       echo "<P>Problemas ao incluir no QRZ</P>"
       echo $ADIF_QRZ >> $QRZ_ERRLOG
    else
@@ -254,7 +257,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
 
 ## ClubLog
   if [[ -n $CLUBLOG_EMAIL && -n $CLUBLOG_KEY && -n $CLUBLOG_APP_PASS ]] ; then
-   if ! curl -d "$ADIF_CLUBLOG" -X POST https://clublog.org/realtime.php | grep "OK" >/dev/shm/transaction-clublog.log ; then
+   if ! curl -m 30 -d "$ADIF_CLUBLOG" -X POST https://clublog.org/realtime.php | grep "OK" >/dev/shm/transaction-clublog.log ; then
       echo "<P>Problemas ao incluir no ClubLog</P>"
       echo $ADIF_CLUBLOG >> $CLUBLOG_ERRLOG
    else
@@ -264,7 +267,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
 
 ## HRDLog
   if [[ -n $HRD_USER && -n $HRD_KEY ]] ; then
-   if ! curl -d "$ADIF_HRD" -X POST http://robot.hrdlog.net/NewEntry.aspx | grep "<id>" >/dev/shm/transaction-hrdlog.log ; then 
+   if ! curl -m 30 -d "$ADIF_HRD" -X POST http://robot.hrdlog.net/NewEntry.aspx | grep "<id>" >/dev/shm/transaction-hrdlog.log ; then 
       echo "<P>Problemas ao incluir no HRDLog</P>"
       echo $ADIF_HRD >> $HRD_ERRLOG
    else
@@ -274,7 +277,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
 
 ## EQSL
   if [[ -n $EQSL_USER && -n $EQSL_PASS ]] ; then
-   if ! curl -d "$ADIF_EQSL" -X POST https://www.eQSL.cc/qslcard/ImportADIF.cfm | grep "Result: 1" >/dev/shm/transaction-eqsl.log ; then 
+   if ! curl -m 30 -d "$ADIF_EQSL" -X POST https://www.eQSL.cc/qslcard/ImportADIF.cfm | grep "Result: 1" >/dev/shm/transaction-eqsl.log ; then 
       echo "<P>Problemas ao incluir no EQSL</P>"
       echo $ADIF_EQSL >> $EQSL_ERRLOG
    else
@@ -284,7 +287,7 @@ if ! [[ $SKIP_LOG == *$QRG* ]] ; then
 
 ## LotW
 if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
-   if ! curl -F "upfile=@/dev/shm/lotw-$MY_CALLSIGN.tq8" https://lotw.arrl.org/lotw/upload | grep -i "file queued for processing" >/dev/shm/transaction-lotw.log ; then
+   if ! curl -m 30 -F "upfile=@/dev/shm/lotw-$MY_CALLSIGN.tq8" https://lotw.arrl.org/lotw/upload | grep -i "file queued for processing" >/dev/shm/transaction-lotw.log ; then
       echo "<P>Problemas ao incluir no LotW</P>"
       mv /dev/shm/lotw-$MY_CALLSIGN.tq8 /dev/shm/failed-lotw-$MY_CALLSIGN-$LOTW_QSO_DATE$LOTW_QSO_QTR.tq8
     else
