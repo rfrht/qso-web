@@ -6,6 +6,11 @@ echo ""
 # Source config stuff
 source /etc/qso/qso.conf
 
+if [ $DEBUG == 1 ] ; then
+   exec 2>&1
+   set -e -x
+fi
+
 # URL Decoder
 urldecode() { echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"; }
 
@@ -14,7 +19,7 @@ read -N $CONTENT_LENGTH QUERY_STRING_POST
 QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
 QRG=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
 CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 | tr "[:lower:]" "[:upper:]" )
-QRA=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
+OP=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 OBS=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
 MODE=$(echo ${QS[5]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
@@ -91,7 +96,7 @@ else
 fi
 
 # Detect wrong mode
-if [[ $RST_R =~ "+" || $RST_R =~ "-" ]] || [[ $RST_T =~ "+" || $RST_T =~ "-" ]] ; then
+if [[ $RST_R =~ "+" || $RST_R =~ "-" ]] || [[ $RST_T =~ "+" || $RST_T =~ "-" ]] && [[ $MODE != "WSPR" ]] ; then
    MODE=FT8
 fi
 
@@ -138,14 +143,22 @@ elif [[ $FREQKC -gt "144800" && $FREQKC -lt "148000" && $MODE == "SSB" ]] ; then
 fi
 
 # Prepare the notes field, if the RST was provided or not.
-if [ -z $RST_R ] ; then
-   OBS=$(echo QRA $QRA - $OBS )
-else
-   if [ $MODE == "FT8" ] ; then
-      OBS=$(echo "QRA $QRA-$OBS-RST R $RST_R dB T $RST_T dB")
+## Special sauce for WSPR
+if [ $MODE == "WSPR" ] ; then
+   # Requires remote Received signal and power at 5W (FT-991A minimum TX Power)
+   if [[ -z $RST_R && -n $RST_T ]] && [[ $TX_POWER == 5 ]] ; then
+      OBS=$(echo "OP $OP-$OBS-RST T $RST_T dB")
    else
-      OBS=$(echo "QRA $QRA-$OBS-RST R $RST_R T $RST_T")
+      echo "<H1>PREENCHIMENTO INCORRETO</H1>"
+      exit 1
    fi
+elif [ -z $RST_R ] ; then
+   OBS=$(echo OP $OP - $OBS )
+## Special sauce for FT8
+elif [ $MODE == "FT8" ] ; then
+   OBS=$(echo "OP $OP-$OBS-RST R $RST_R dB T $RST_T dB")
+else
+   OBS=$(echo "OP $OP-$OBS-RST R $RST_R T $RST_T")
 fi
 
 # Reuse fields from this QSO to the next one
@@ -162,7 +175,7 @@ ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY
 ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<EOR>")
 
 # EQSL
-EQSLMSG="TNX 4 QSO $QRA - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73s o/"
+EQSLMSG="TNX 4 QSO $OP - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73s o/"
 ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<eor>")
 
 # LotW
@@ -221,14 +234,14 @@ fi
 
 # ===== LOG CONTACTS =====
 # Log it locally in CSV
-if ! echo $QRG,$CALLSIGN,$QRA,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
+if ! echo $QRG,$CALLSIGN,$OP,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
    echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
    exit 1
 fi
 
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$QRA','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"
