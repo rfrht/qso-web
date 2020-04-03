@@ -225,7 +225,7 @@ if [ $DEBUG == 1 ] ; then
    echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
    echo "$ADIF_HRD" >> $HRD_ERRLOG
    echo "$ADIF_EQSL" >> $EQSL_ERRLOG
-   sqlite -separator ',' $SQDB "SELECT qrg, callsign, qra, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+   sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
                                 WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
 
@@ -241,7 +241,7 @@ fi
 
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, qra, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"
@@ -249,7 +249,7 @@ if [[ -n $SQDB ]] ; then
 fi
 
 # Show the last 20 after logging the Contact
-sqlite -separator ',' $SQDB "SELECT qrg, callsign, qra, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
                              WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
 awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
 
