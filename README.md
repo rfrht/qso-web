@@ -163,15 +163,16 @@ Now outputs log to SQLite too. Schema:
 
 ~~~
 CREATE TABLE contacts (
-qrg REAL,
-callsign TEXT,
-qra TEXT,
-qtr INTEGER,
-obs TEXT,
-mode TEXT,
-power INTEGER,
-propagation TEXT
-);
+  qrg REAL, 
+  callsign TEXT, 
+  op TEXT, 
+  qtr INTEGER, 
+  obs TEXT, 
+  mode TEXT, 
+  power INTEGER, 
+  propagation TEXT, 
+  sighis INTEGER, 
+  sigmy INTEGER );
 ~~~
 
 Caveat: Your web user must have read/write permission not only to the sqlite file, but to your sqlite **directory** too - Otherwise, it will spew a Access Denied.
