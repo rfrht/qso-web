@@ -51,12 +51,7 @@ QSO_DATE=$(TZ=UTC date +%Y%m%d --date="@$EPOCH")
 QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
 
 # Calculate serial number and check consistency
-LOG_RECORDS=$(wc -l $QSO_LOGFILE | awk '{print $1}')
-let SERIAL=PRECOUNT+LOG_RECORDS+1
-if [ $(/usr/bin/sqlite $SQDB "SELECT MAX(rowid) FROM contacts;") != $SERIAL ] ; then
-   echo "<H1>SERIAL/RECORD MISMATCH</H1>"
-   exit 1
-fi
+let SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(rowid) FROM contacts;")+1
 
 # Identify where I'm transmitting from. Sao Paulo or Sorocaba.
 # Happily overriding /etc/qso/qso.conf. Also adds a note on QSO field.
