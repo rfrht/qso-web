@@ -55,11 +55,9 @@ let SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(rowid) FROM contacts;")+1
 
 # Identify where I'm transmitting from. Sao Paulo or Sorocaba.
 # Happily overriding /etc/qso/qso.conf. Also adds a note on QSO field.
-if [[ $REMOTE_ADDR =~ "172.16." ]] ; then
-   GRID="GG66pk"
-else
-   GRID="GG66gk"
-   OBS="TX GG66GK-$OBS"
+if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
+   GRID=$ALT_GRID
+   OBS="TX $ALT_GRID-$OBS"
 fi
 
 # Sort out the band
@@ -152,6 +150,8 @@ if [ $MODE == "WSPR" ] ; then
       echo "<H1>PREENCHIMENTO INCORRETO</H1>"
       exit 1
    fi
+elif [ ! -z $CONTEST_ID ] ; then
+   OBS=$(echo "$CONTEST_ID // $OBS")
 elif [ -z $RST_R ] ; then
    OBS=$(echo OP $OP - $OBS )
 ## Special sauce for FT8
@@ -161,27 +161,22 @@ else
    OBS=$(echo "OP $OP-$OBS-RST R $RST_R T $RST_T")
 fi
 
-# Add Contest ID to OBS, if present.
-if [ ! -z $CONTEST_ID ] ; then
-   OBS=$(echo $OBS - CONTEST $CONTEST_ID)
-fi
-
 # Reuse fields from this QSO to the next one
 cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"F2f/$TX_POWER\"/g" -e "s/\"F3f/$CONTEST_ID\"/g"
 
 # ===== 3RD PARTY SYSTEM LOG - String prep =====
 # QRZ
-ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<eor>")
+ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<eor>")
 
 # ClubLog
-ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<EOR>")
+ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
 
 # HRDLog
-ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<EOR>")
+ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
 
 # EQSL
 EQSLMSG="TNX 4 QSO $OP - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73s o/"
-ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<eor>")
+ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<eor>")
 
 # LotW
 if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
@@ -230,6 +225,8 @@ if [ $DEBUG == 1 ] ; then
    echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
    echo "$ADIF_HRD" >> $HRD_ERRLOG
    echo "$ADIF_EQSL" >> $EQSL_ERRLOG
+   echo "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" > /dev/shm/transaction-sqlite.log
+
    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
                                 WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
