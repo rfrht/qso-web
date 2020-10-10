@@ -150,8 +150,10 @@ if [ $MODE == "WSPR" ] ; then
       echo "<H1>PREENCHIMENTO INCORRETO</H1>"
       exit 1
    fi
-elif [ ! -z $CONTEST_ID ] ; then
+elif [ ! -z "$CONTEST_ID" ] ; then
    OBS=$(echo "$CONTEST_ID // $OBS")
+   RST_R=59
+   RST_T=59
 elif [ -z $RST_R ] ; then
    OBS=$(echo OP $OP - $OBS )
 ## Special sauce for FT8
