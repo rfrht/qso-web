@@ -23,11 +23,11 @@ OP=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cu
 OBS=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
 MODE=$(echo ${QS[5]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-RST_R=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-RST_T=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-ALT_D=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
-ALT_T=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
-CONTEST_ID=$(echo ${QS[11]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
+RST_R=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
+RST_T=$(echo ${QS[6]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
+ALT_D=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
+ALT_T=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
+CONTEST_ID=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
 
 # Bail if no proper mode is selected
 if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
@@ -93,9 +93,12 @@ else
      exit 0
 fi
 
-# Detect wrong mode
-if [[ $RST_R =~ "+" || $RST_R =~ "-" ]] || [[ $RST_T =~ "+" || $RST_T =~ "-" ]] && [[ $MODE != "WSPR" ]] ; then
-   MODE=FT8
+# Detect wrong mode - if adding the "+" or "-", infer it's FT8.
+# But make an exception for JT65.
+if [[ $MODE != "JT65" ]]; then
+  if [[ $RST_R =~ "+" || $RST_R =~ "-" ]] || [[ $RST_T =~ "+" || $RST_T =~ "-" ]] && [[ $MODE != "WSPR" ]] ; then
+     MODE=FT8
+  fi
 fi
 
 # Calculate propagation mode
@@ -158,6 +161,11 @@ elif [ -z $RST_R ] ; then
    OBS=$(echo OP $OP - $OBS )
 ## Special sauce for FT8
 elif [ $MODE == "FT8" ] ; then
+   # Avoid FT8 logs with more than 25 dB; probably on error
+   if [[ $RST_R -ge 25 || $RST_T -ge 25 ]] ; then
+      echo "<h1>MAIS DE 25 dB EM FT8???</h1>"
+      exit 0
+   fi
    OBS=$(echo "OP $OP-$OBS-RST R $RST_R dB T $RST_T dB")
 else
    OBS=$(echo "OP $OP-$OBS-RST R $RST_R T $RST_T")
