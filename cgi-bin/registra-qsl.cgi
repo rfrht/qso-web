@@ -33,9 +33,9 @@ elif [[ -z "$TYPE" || -z "$METHOD" ]] ; then
   QSLS=$(sqlite $SQDB "SELECT COUNT(*) FROM qsl WHERE callsign = '$CALLSIGN'")
   if [[ $QSLS -ge 1 ]] ; then
     cat $QSL_FORM | sed -e "s/\"F1f/$CALLSIGN\"/g"
-    sqlite -separator ',' $SQDB "SELECT callsign, method, datetime(date,'unixepoch'), via, type FROM qsl
+    sqlite -separator ',' $SQDB "SELECT rowid, callsign, method, datetime(date,'unixepoch'), via, type FROM qsl
                              WHERE callsign='$CALLSIGN' ORDER BY date" |
-    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td></tr>"}'
+    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td></tr>"}'
     echo "</table>"
     exit 0
   fi
@@ -68,8 +68,8 @@ if [[ -n $SQDB ]] ; then
 fi
 
 # Show the last 20 QSL confirmations after logging the Contact
-sqlite -separator ',' $SQDB "SELECT callsign, method, datetime(date,'unixepoch'), via, type FROM qsl
+sqlite -separator ',' $SQDB "SELECT rowid, callsign, method, datetime(date,'unixepoch'), via, type FROM qsl
                              WHERE strftime('%Y',date,'unixepoch') = strftime('%Y','now') ORDER BY date DESC LIMIT 20" |
-  awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td></tr>"}'
+  awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td></tr>"}'
 
 echo "</table></body></html>"
