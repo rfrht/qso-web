@@ -1,0 +1,63 @@
+<html>
+<head>
+<title>Sistema de Registro de QSLs</title>
+</head>
+
+<body bgcolor="#ffbd00">
+<table border="0" width="100%" cellpadding="2" cellspacing="1" bgcolor="#ffbd00">
+<tr>
+<tr><td bgcolor="#FF7F00" valign="middle">
+
+<table width="100%">
+<tr>
+<td valign="center">
+<font face="verdana" size="+2" color="white"><b>Sistema de Registro de QSLs</b> </font><br>
+<font face="verdana" size="+1" color="white"><b>PY2RAF</font>
+</td>
+
+<td valign="center" align="right">
+</td></tr>
+</table>
+</table>
+
+<p>
+<font face="verdana">
+
+<small></small>
+<p>
+<form action="/cgi-bin/registra-qsl.cgi" method="POST">
+
+Indicativo:<br>
+<input type="TEXT" name="callsign" maxlength="16" autofocus value=""F1f><br>
+<br>
+
+Enviado por:<br>
+<select name="method" >
+  <option value="Mail">Mail</option>
+  <option value="Bureau">Bureau</option>
+  <option value="e.m.">Em M&atilde;os</option>
+</select>
+<br><BR>
+
+Data (YYYY-MM-DD): (opcional)<BR>
+<input type='text' maxlength=10 size=10 autocomplete='off' name='date'><BR>
+<BR>
+
+Via:<br>
+<input type="TEXT" name="via" value="" maxlength="16"><br>
+<br>
+
+Tipo:<BR>
+<input type="radio" name="type" value="PSE">PSE
+<input type="radio" name="type" value="TNX">TNX
+<input type="radio" name="type" value="SWL">SWL
+<BR>
+
+<P>
+<input type="SUBMIT" value="Registra"></form>
+
+
+<a href="/cgi-bin/lista-qsl.cgi">Lista QSLs</a>
+<P>
+<table border><tr><td><b>Callsign</td><TD><B>Method</td><td><b>Date</td><td><b>Via</td><td><b>Type</td></tr>
+

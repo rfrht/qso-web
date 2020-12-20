@@ -3,7 +3,11 @@
 
 This is a Shell-Script, web-based QSO logging tool.
 
-It features automatic LOTW, QRZ, eQSL, ClubLog and HRDLog automatic contact upload, as well configurable skip-frequencies, where you don't want the records logged.
+It features:
+* Instantaneous and automatic LOTW, QRZ, eQSL, ClubLog and HRDLog contact upload
+* QSL card control
+* Looks up for Bureau acceptance in QRZ (requires QRZ subscription)
+* Allows skip-frequencies, where you don't want the records logged.
 
 The access control is provided by the `.htaccess` policy file to the `registra.cgi` CGI file, which actually writes the new records.
 

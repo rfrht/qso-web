@@ -45,7 +45,9 @@ if [[ -n $ALT_D && -n $ALT_T ]] ; then
 else
    EPOCH=$(TZ=UTC date +%s)
 fi
+
 if [ -z $EPOCH ] ; then echo "Erro de Data" ; exit 1 ; fi
+
 QTR=$(TZ=UTC date +%c --date="@$EPOCH")
 QSO_DATE=$(TZ=UTC date +%Y%m%d --date="@$EPOCH")
 QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
@@ -54,10 +56,11 @@ QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
 let SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(rowid) FROM contacts;")+1
 
 # Identify where I'm transmitting from. Sao Paulo or Sorocaba.
-# Happily overriding /etc/qso/qso.conf. Also adds a note on QSO field.
 if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
    GRID=$ALT_GRID
    OBS="TX $ALT_GRID-$OBS"
+   ANTENNA_HF="$ALT_ANTENNA_HF"
+   ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
 fi
 
 # Sort out the band
@@ -116,9 +119,9 @@ if [[ $TX_POWER -gt 50 && $FREQKC -ge 144000 ]] ; then echo "Mais de 50W em V/U?
 
 # Proper antenna selection
 if [[ $BAND == "2m" || $BAND == "70cm" ]] ; then
-   ANTENNA=$ANTENNA1
+   ANTENNA=$ANTENNA_VHF_UHF
 else
-   ANTENNA=$ANTENNA2
+   ANTENNA=$ANTENNA_HF
 fi
 
 # Stop logging if missing essential fields
@@ -262,9 +265,8 @@ fi
 
 # Show the last 20 after logging the Contact
 sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
-                             WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
+                             WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY qtr DESC LIMIT 20" |
 awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
-
 
 # Only logs QSOs externally if not a blacklisted QRG
 if ! [[ $SKIP_LOG == *$QRG* ]] ; then
@@ -323,5 +325,9 @@ if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW
 fi
 
 echo "</table>
+
+<!-- QRZ Log Block -->
+<P><iframe align=\"top\" frameborder=\"0\" height=\"520\" scrolling=\"yes\" src=\"https://logbook.qrz.com/lbstat/$MY_CALLSIGN/\" width=\"800\"></iframe>
+
 </body>
 </html>"
