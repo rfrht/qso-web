@@ -32,7 +32,7 @@ if [ $(( $(date +%s) - $(stat -c'%Y' $LISTAGEM_LABRE) )) -ge 86400 ] ; then
 lynx -dump -connect_timeout=5 -read_timeout=5 \
   http://www.labre-sp.org.br/saa/publico/bureau_online_indicativos.php > /tmp/qsl/listagem-nova.txt
 # Testa se listagem nova da LABRE e' atual e correta
-  if ! grep $MY_CALL /tmp/qsl/listagem-nova.txt | grep "in use" ; then
+  if ! grep $MY_CALLSIGN /tmp/qsl/listagem-nova.txt | grep "in use" ; then
     echo "Listagem com problemas, nao atualizei."
     exit 1
   else
