@@ -23,8 +23,8 @@ OP=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cu
 OBS=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
 MODE=$(echo ${QS[5]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-RST_R=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-RST_T=$(echo ${QS[6]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
+SIG_MY=$(echo ${QS[6]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
+SIG_HIS=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 ALT_D=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
 ALT_T=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
 CONTEST_ID=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
@@ -99,7 +99,7 @@ fi
 # Detect wrong mode - if adding the "+" or "-", infer it's FT8.
 # But make an exception for JT65.
 if [[ $MODE != "JT65" ]]; then
-  if [[ $RST_R =~ "+" || $RST_R =~ "-" ]] || [[ $RST_T =~ "+" || $RST_T =~ "-" ]] && [[ $MODE != "WSPR" ]] ; then
+  if [[ $SIG_MY =~ "+" || $SIG_MY =~ "-" ]] || [[ $SIG_HIS =~ "+" || $SIG_HIS =~ "-" ]] && [[ $MODE != "WSPR" ]] ; then
      MODE=FT8
   fi
 fi
@@ -126,7 +126,7 @@ fi
 
 # Stop logging if missing essential fields
 if [[ -z $QRG || -z $CALLSIGN || -z $MODE ]] || 
-   [[ ( -z $RST_R || -z $RST_T ) && $MODE == "FT8" ]]
+   [[ ( -z $SIG_MY || -z $SIG_HIS ) && $MODE == "FT8" ]]
 then
    echo "<h1>FALTOU CAMPO ESSENCIAL</h1>"
    # Reuse this QSO data in new contact form
@@ -150,28 +150,28 @@ fi
 ## Special sauce for WSPR
 if [ $MODE == "WSPR" ] ; then
    # Requires remote Received signal and power at 5W (FT-991A minimum TX Power)
-   if [[ -z $RST_R && -n $RST_T ]] && [[ $TX_POWER == 5 ]] ; then
-      OBS=$(echo "OP $OP-$OBS-RST T $RST_T dB")
+   if [[ -z $SIG_MY && -n $SIG_HIS ]] && [[ $TX_POWER == 5 ]] ; then
+      OBS=$(echo "OP $OP-$OBS-RST T $SIG_HIS dB")
    else
       echo "<H1>PREENCHIMENTO INCORRETO</H1>"
       exit 1
    fi
 elif [ ! -z "$CONTEST_ID" ] ; then
    OBS=$(echo "$CONTEST_ID // $OBS")
-   RST_R=59
-   RST_T=59
-elif [ -z $RST_R ] ; then
+   SIG_MY=59
+   SIG_HIS=59
+elif [ -z $SIG_MY ] ; then
    OBS=$(echo OP $OP - $OBS )
 ## Special sauce for FT8
 elif [ $MODE == "FT8" ] ; then
    # Avoid FT8 logs with more than 25 dB; probably on error
-   if [[ $RST_R -ge 25 || $RST_T -ge 25 ]] ; then
+   if [[ $SIG_MY -ge 25 || $SIG_HIS -ge 25 ]] ; then
       echo "<h1>MAIS DE 25 dB EM FT8???</h1>"
       exit 0
    fi
-   OBS=$(echo "OP $OP-$OBS-RST R $RST_R dB T $RST_T dB")
+   OBS=$(echo "OP $OP-$OBS-RST R $SIG_MY dB T $SIG_HIS dB")
 else
-   OBS=$(echo "OP $OP-$OBS-RST R $RST_R T $RST_T")
+   OBS=$(echo "OP $OP-$OBS-RST R $SIG_MY T $SIG_HIS")
 fi
 
 # Reuse fields from this QSO to the next one
@@ -179,17 +179,17 @@ cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g
 
 # ===== 3RD PARTY SYSTEM LOG - String prep =====
 # QRZ
-ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<eor>")
+ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<eor>")
 
 # ClubLog
-ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
+ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
 
 # HRDLog
-ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
+ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
 
 # EQSL
 EQSLMSG="TNX 4 QSO $OP - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73s o/"
-ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#RST_R}>$RST_R<rst_sent:${#RST_T}>$RST_T<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<eor>")
+ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<eor>")
 
 # LotW
 if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
@@ -238,7 +238,7 @@ if [ $DEBUG == 1 ] ; then
    echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
    echo "$ADIF_HRD" >> $HRD_ERRLOG
    echo "$ADIF_EQSL" >> $EQSL_ERRLOG
-   echo "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" > /dev/shm/transaction-sqlite.log
+   echo "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" > /dev/shm/transaction-sqlite.log
 
    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
                                 WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
@@ -256,7 +256,7 @@ fi
 
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$RST_R','$RST_T')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"
