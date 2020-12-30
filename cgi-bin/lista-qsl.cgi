@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Content-type: text/html"
+echo "Content-type: text/html; charset=UTF-8"
 echo ""
 
 source /etc/qso/qso.conf
@@ -15,11 +15,9 @@ echo "
 TZ='America/Sao_Paulo' date ; echo "<P>"
 
 cat $PAGE_HEADER | sed -e "/Watts/d"
-echo "<table border><tr><td><b>Callsign</td><TD><B>Method</td><td><b>Date</td><td><b>Via</td><td><b>Type</td></tr>"
+echo "<table border><tr><td><b>S/N</td><td><b>Callsign</td><TD><B>Method</td><td><b>Date</td><td><b>Via</td><td><b>Type</td><td><b>X/O</td></tr>"
 
-sqlite -separator ',' $SQDB "SELECT callsign, method, datetime(date,'unixepoch'), via, type FROM qsl
+sqlite -separator ',' $SQDB "SELECT rowid, callsign, method, datetime(date,'unixepoch'), via, type, CASE xo WHEN 0 THEN '❌' WHEN 1 THEN '✅' END FROM qsl
                              WHERE strftime('%Y',date,'unixepoch') = strftime('%Y','now') ORDER BY date DESC" |
-  awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td></tr>"}'
+  awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD><center>"$7"</center></td></tr>"}'
 echo "</table></body></html>"
-
-

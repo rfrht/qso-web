@@ -6,6 +6,8 @@ echo ""
 # Source config stuff
 source /etc/qso/qso.conf
 
+#DEBUG=1
+
 if [ $DEBUG == 1 ] ; then
    exec 2>&1
    set -e -x
@@ -48,6 +50,14 @@ elif [[ -z "$TYPE" || -z "$METHOD" ]] ; then
   exit 0
 fi
 
+# TNX or SWL - I already have the card, so XO = 1
+if [[ "$TYPE" == "TNX" || "$TYPE" == "SWL" ]] ; then
+   XO=1
+else
+# No card yet.
+   XO=0
+fi
+
 # Prepare the QSO date.
 if [[ -n $DATE ]] ; then
    EPOCH=$(TZ=UTC date +%s --date="$DATE")
@@ -60,7 +70,7 @@ cat $QSL_FORM
 
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO qsl (callsign, method, date, via, type) VALUES ('$CALLSIGN', '$METHOD', '$EPOCH', '$VIA', '$TYPE')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO qsl (callsign, method, date, via, type, xo) VALUES ('$CALLSIGN', '$METHOD', '$EPOCH', '$VIA', '$TYPE', '$XO')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"

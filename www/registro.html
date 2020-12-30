@@ -39,15 +39,15 @@ function yesnoCheck() {
 <form action="/cgi-bin/registra.cgi" method="POST">
 
 Indicativo:<br>
-<input type="TEXT" name="indic" maxlength="16" autofocus><br>
+<input type="TEXT" name="indic" maxlength="16"F5f autofocus><br>
 <br>
 
 Operador:<br>
-<input type="TEXT" name="qra" maxlength="20"><br>
+<input type="TEXT" name="qra" maxlength="20"F6f><br>
 <br>
 
 OBS:<BR>
-<input type="TEXT" name="obs" value="" maxlength="40"><br>
+<input type="TEXT" name="obs" value="" maxlength="40"F8f><br>
 <br>
 
 <!-- The F1f, F2f, F3f etc are cues for substitution in CGI and reusing the field-->
@@ -88,7 +88,7 @@ MODO:<BR>
 
 <td>
 <form action="/cgi-bin/conta-contatos.cgi" target=_blank method=post>
-<input type="TEXT" name="CALLSIGN" placeholder="Lista Contatos">
+<input type="TEXT" name="CALLSIGN" placeholder="Lista Contatos" value=""F4f >
 <p><input type="submit" value="Consulta">
 </form>
 
@@ -103,7 +103,7 @@ MODO:<BR>
 <BR><BR><BR>
 
 <form action="https://www.qrz.com/lookup" method="post" target=_blank>
-<input id="tquery" name="tquery" type="text" maxlength="60" value="" placeholder="QRZ"/>
+<input id="tquery" name="tquery" type="text" maxlength="60" value=""F7f  placeholder="QRZ"/>
 <P><input id="tsubmit" type="submit" value="Search" />
 </form>
 
