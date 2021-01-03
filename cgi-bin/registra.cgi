@@ -6,7 +6,6 @@ echo ""
 # Source config stuff
 source /etc/qso/qso.conf
 
-#DEBUG=1
 if [ $DEBUG == 1 ] ; then
    exec 2>&1
    set -e -x
@@ -393,7 +392,7 @@ if [ $DEBUG == 1 ] ; then
    echo "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" > /dev/shm/transaction-sqlite.log
 
    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
-                                WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY rowid DESC LIMIT 20" |
+                                ORDER BY qtr DESC LIMIT 20" |
    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
 
    exit 0
@@ -417,7 +416,7 @@ fi
 
 # Show the last 20 after logging the Contact
 sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
-                             WHERE strftime('%Y',qtr,'unixepoch') = strftime('%Y','now') ORDER BY qtr DESC LIMIT 20" |
+                             ORDER BY qtr DESC LIMIT 20" |
 awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
 
 # Only logs QSOs externally if not a blacklisted QRG

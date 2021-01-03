@@ -79,7 +79,7 @@ fi
 
 # Show the last 20 QSL confirmations after logging the Contact
 sqlite -separator ',' $SQDB "SELECT rowid, callsign, method, datetime(date,'unixepoch'), via, type FROM qsl
-                             WHERE strftime('%Y',date,'unixepoch') = strftime('%Y','now') ORDER BY date DESC LIMIT 20" |
+                             ORDER BY date DESC LIMIT 20" |
   awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td></tr>"}'
 
 echo "</table></body></html>"
