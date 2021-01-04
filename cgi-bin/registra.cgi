@@ -20,7 +20,7 @@ QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
 QRG=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
 CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 | tr "[:lower:]" "[:upper:]" )
 OP=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-OBS=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
+QTH=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
 MODE=$(echo ${QS[5]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
 SIG_MY=$(echo ${QS[6]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
@@ -28,6 +28,7 @@ SIG_HIS=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]'
 ALT_D=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
 ALT_T=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
 CONTEST_ID=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
+OBS=$(echo ${QS[11]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
 
 ###############################################################################
 ############ THIS IS A LONG BLOCK. CALLSIGN & QSL CHECK. ######################
@@ -108,7 +109,9 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" /tmp/qsl/qrz_query.txt | grep -i bur
 
   if [[ $QTD_CONTATOS -ge 1 ]] ; then
     QSLS=$(sqlite $SQDB "SELECT COUNT(*) FROM qsl WHERE callsign = '$CALLSIGN'")
-    OP=$(sqlite $SQDB "SELECT op FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY rowid DESC LIMIT 1")
+    OP=$(sqlite $SQDB "SELECT op FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
+    QTH=$(sqlite $SQDB "SELECT qth FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
+    if [ -z "$MODE" ] ; then MODE="FM" ; fi
     cat $RECORD_FORM | sed -e "/Watt/d" \
                            -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                            -e "s/\"F1f/$QRG\"/g" \
@@ -118,7 +121,8 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" /tmp/qsl/qrz_query.txt | grep -i bur
                            -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
                            -e "s/F6f/ value=\"$OP\"/g" \
                            -e "s/\"F7f/$CALLSIGN\"/g" \
-                           -e "s/F8f/ autofocus/g"
+                           -e "s/\"F8f/$QTH\"/g" \
+                           -e "s/F9f/ autofocus/g"
 
     if [[ $QSLS -ge 1 ]] ; then
       echo "<P>QSLs pagos:</P>"
@@ -144,10 +148,10 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" /tmp/qsl/qrz_query.txt | grep -i bur
     echo "<h2>Contatos: $QTD_CONTATOS</h2>
           <h3>Este ano: $CONTATOS_ESTE_ANO</h3>"
 
-    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>RMKs</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td></tr>"
-    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
+    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
                              WHERE callsign = '$CALLSIGN' OR op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
-    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
+    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
     echo "</table>
 
 <!-- QRZ Log Block -->
@@ -167,10 +171,10 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" /tmp/qsl/qrz_query.txt | grep -i bur
                            -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
                            -e "s/F6f/ autofocus/g" \
                            -e "s/\"F7f/$CALLSIGN\"/g"
-    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>RMKs</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td></tr>"
-    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>Obs.:</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
+    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
                              WHERE op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
-    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
+    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
     echo "</table>"
 
   exit 0
@@ -199,13 +203,13 @@ QTR=$(TZ=UTC date +%c --date="@$EPOCH")
 QSO_DATE=$(TZ=UTC date +%Y%m%d --date="@$EPOCH")
 QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
 
-# Calculate serial number and check consistency
-let SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(rowid) FROM contacts;")+1
+# Calculate serial number
+SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(serial)+1 FROM contacts;")
 
 # Identify where I'm transmitting from. Sao Paulo or Votorantim
 if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
    GRID=$ALT_GRID
-   OBS="TX $ALT_GRID-$OBS"
+   OBS="TX $ALT_GRID"
    ANTENNA_HF="$ALT_ANTENNA_HF"
    ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
 fi
@@ -297,28 +301,21 @@ fi
 ## Special sauce for WSPR
 if [ $MODE == "WSPR" ] ; then
    # Requires remote Received signal and power at 5W (FT-991A minimum TX Power)
-   if [[ -z $SIG_MY && -n $SIG_HIS ]] && [[ $TX_POWER == 5 ]] ; then
-      OBS=$(echo "OP $OP-$OBS-RST T $SIG_HIS dB")
-   else
+   if ! [[ -z $SIG_MY && -n $SIG_HIS ]] && [[ $TX_POWER == 5 ]] ; then
       echo "<H1>PREENCHIMENTO INCORRETO</H1>"
       exit 1
    fi
 elif [ ! -z "$CONTEST_ID" ] ; then
-   OBS=$(echo "$CONTEST_ID // $OBS")
+   OBS=$(echo "$CONTEST_ID // $QTH")
    SIG_MY=59
    SIG_HIS=59
-elif [ -z $SIG_MY ] ; then
-   OBS=$(echo OP $OP - $OBS )
 ## Special sauce for FT8
 elif [ $MODE == "FT8" ] ; then
    # Avoid FT8 logs with more than 25 dB; probably on error
    if [[ $SIG_MY -ge 25 || $SIG_HIS -ge 25 ]] ; then
       echo "<h1>MAIS DE 25 dB EM FT8???</h1>"
-      exit 0
+      exit 1
    fi
-   OBS=$(echo "OP $OP-$OBS-RST R $SIG_MY dB T $SIG_HIS dB")
-else
-   OBS=$(echo "OP $OP-$OBS-RST R $SIG_MY T $SIG_HIS")
 fi
 
 # Reuse fields from this QSO to the next one
@@ -330,7 +327,7 @@ cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
 
 # ===== 3RD PARTY SYSTEM LOG - String prep =====
 # QRZ
-ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#OBS}>$OBS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<eor>")
+ADIF_QRZ=$(echo "KEY=$QRZ_KEY&ACTION=INSERT&ADIF=<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<comment:${#QTH}>$QTH<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<eor>")
 
 # ClubLog
 ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY&password=$CLUBLOG_APP_PASS&adif=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<qsl_sent:1>Y<qsl_sent_via:1>E<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
@@ -389,9 +386,9 @@ if [ $DEBUG == 1 ] ; then
    echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
    echo "$ADIF_HRD" >> $HRD_ERRLOG
    echo "$ADIF_EQSL" >> $EQSL_ERRLOG
-   echo "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" > /dev/shm/transaction-sqlite.log
+   echo "INSERT INTO contacts (qrg, callsign, op, qtr, qth, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$QTH','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" > /dev/shm/transaction-sqlite.log
 
-   sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+   sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power FROM contacts 
                                 ORDER BY qtr DESC LIMIT 20" |
    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
 
@@ -400,14 +397,14 @@ fi
 
 # ===== LOG CONTACTS =====
 # Log it locally in CSV
-if ! echo $QRG,$CALLSIGN,$OP,$QTR,$OBS,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
+if ! echo $QRG,$CALLSIGN,$OP,$QTR,$QTH,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
    echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
    exit 1
 fi
 
 # Logs the contact in SQLite DB
 if [[ -n $SQDB ]] ; then
-  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (qrg, callsign, op, qtr, obs, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$OBS','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" >/dev/shm/transaction-sqlite.log 2>&1; then
+  if ! /usr/bin/sqlite $SQDB "INSERT INTO contacts (serial, qrg, callsign, op, qtr, qth, mode, power, propagation, sighis, sigmy, obs) VALUES ('$SERIAL','$QRG','$CALLSIGN','$OP','$EPOCH','$QTH','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS','$OBS')" >/dev/shm/transaction-sqlite.log 2>&1; then
     echo "<P>Problemas ao registrar o SQLite</p>"
   else
     echo "SQLite OK<BR>"
@@ -415,9 +412,9 @@ if [[ -n $SQDB ]] ; then
 fi
 
 # Show the last 20 after logging the Contact
-sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, rowid, power FROM contacts 
+sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
                              ORDER BY qtr DESC LIMIT 20" |
-awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
+awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
 
 # Only logs QSOs externally if not a blacklisted QRG
 if ! [[ $SKIP_LOG == *$QRG* ]] ; then

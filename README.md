@@ -166,17 +166,31 @@ $ curl -F 'upfile=@lotw-PY2RAF.tq8' https://lotw.arrl.org/lotw/upload
 Now outputs log to SQLite too. Schema:
 
 ~~~
-CREATE TABLE contacts (
+CREATE TABLE contacts ( 
+  serial INTEGER PRIMARY KEY, 
   qrg REAL, 
   callsign TEXT, 
   op TEXT, 
   qtr INTEGER, 
-  obs TEXT, 
   mode TEXT, 
   power INTEGER, 
   propagation TEXT, 
   sighis INTEGER, 
-  sigmy INTEGER );
+  sigmy INTEGER, 
+  qth TEXT, 
+  obs TEXT );
+~~~
+
+QSL Schema:
+
+~~~
+CREATE TABLE qsl (
+  callsign TEXT, 
+  method TEXT, 
+  date INTEGER, 
+  via TEXT, 
+  type TEXT, 
+  xo BOOLEAN );
 ~~~
 
 Caveat: Your web user must have read/write permission not only to the sqlite file, but to your sqlite **directory** too - Otherwise, it will spew a Access Denied.

@@ -46,8 +46,8 @@ Operador:<br>
 <input type="TEXT" name="qra" maxlength="20"F6f><br>
 <br>
 
-OBS:<BR>
-<input type="TEXT" name="obs" value="" maxlength="40"F8f><br>
+QTH:<BR>
+<input type="TEXT" name="qth" maxlength="40" value=""F8f><br>
 <br>
 
 <!-- The F1f, F2f, F3f etc are cues for substitution in CGI and reusing the field-->
@@ -75,11 +75,12 @@ MODO:<BR>
 
 <table border=0>
   <tr><td></td><td><center><B>== Opcionais ==</b></center></td></tr>
-  <tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r'></td>
+  <tr><td>Eu recebi o colega a:</td><TD><input type='text' maxlength=3 size=4 name='rst_r' F9f></td>
       <td>O colega me recebeu a:</td><TD><input type='text' maxlength=3 size=4 name='rst_t'></td></tr>
   <tr><td>Data (YYYY-MM-DD):</td><TD><input type='text' maxlength=10 size=10 autocomplete='off' name='ALT_D'></td>
       <td>Hora (HH:MM):</td><TD><input type='text' maxlength=5 size=5 autocomplete='off' name='ALT_T'></td></tr>
-  <tr><td>Conteste:</td><td><input type='text' maxlength=25 name='CONTEST_ID' value=""F3f></td></tr>
+  <tr><td>Conteste:</td><td><input type='text' maxlength=25 name='CONTEST_ID' value=""F3f></td>
+      <td>Obs.:</td><td><input type="TEXT" name="obs" value="" maxlength="40"><br></tr>
 </table>
 
 <P>
@@ -115,5 +116,4 @@ MODO:<BR>
 
 <a href="/cgi-bin/lista-qso.cgi">Lista QSOs</a>
 <P>
-<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>RMKs</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td></tr>
-
+<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>RMKs</b></td><TD><B>Sig His</b></td> <TD><B>Sig My</b></td></tr>

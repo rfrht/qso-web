@@ -95,9 +95,9 @@ else
   sqlite $SQDB "UPDATE qsl SET xo = 1 WHERE rowid = $QSL_SERIAL"
 fi
 
-CONTATOS=$(sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), obs, mode, power FROM contacts 
+CONTATOS=$(sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
                                         WHERE callsign = '$CALLSIGN' OR op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
-           awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td></tr>"}')
+           awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}')
 QTD_CONTATOS=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN'")
 CONTATOS_ESTE_ANO=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN' 
                                   AND strftime('%Y',qtr,'unixepoch') = strftime('%Y','now');")
@@ -138,7 +138,7 @@ fi
 echo "<h2>Contatos: $QTD_CONTATOS</h2>
 <h3>Este ano: $CONTATOS_ESTE_ANO</h3>"
 
-echo "<table border=1><TR><TD><B>QRG</B></TD><TD><B>Indicativo</B></TD><TD><B>Operador</B></TD><TD><B>QTR</B></td><TD><B>Notas</B></td><TD><B>Modo</B></td><td><b>TXPO</b></td></tr>"
+echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
 
 echo "$CONTATOS"
 
