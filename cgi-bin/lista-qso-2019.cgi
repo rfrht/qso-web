@@ -1,1 +1,1 @@
-lista-qso-year.cgi
+lista-qso.cgi

@@ -9,6 +9,8 @@ source /etc/qso/qso.conf
 if [ $DEBUG == 1 ] ; then
    exec 2>&1
    set -e -x
+   set
+   env
 fi
 
 # URL Decoder
@@ -29,11 +31,39 @@ ALT_D=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' |
 ALT_T=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
 CONTEST_ID=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
 OBS=$(echo ${QS[11]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
+BOTAO=$(echo ${QS[12]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 | tr "[:lower:]" "[:upper:]" )
 
 ###############################################################################
 ############ THIS IS A LONG BLOCK. CALLSIGN & QSL CHECK. ######################
 ###############################################################################
 if [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
+
+consulta_qrz() {
+# Pesquisa pelo usuario no QRZ
+
+CHAVE_QRZ=$(cat /tmp/qsl/chave_qrz.txt)
+
+if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$CHAVE_QRZ&callsign=$1" > /tmp/qsl/qrz_query.txt ; then
+  echo "Erro consultando QRZ"
+  exit 1
+fi
+
+# Se na consulta anterior houve problema de chave; gera uma nova
+if grep -i error /tmp/qsl/qrz_query.txt ; then
+  if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?username=$MY_CALLSIGN&password=$QRZ_PASS" | \
+       grep -oPm1 "(?<=<Key>)[^<]+" > /tmp/qsl/chave_qrz.txt ; then
+    echo "Erro buscando chave"
+    exit 1
+  else
+# Tenta outra vez consultar, com a chave nova
+    CHAVE_QRZ=$(cat /tmp/qsl/chave_qrz.txt)
+    if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$CHAVE_QRZ&callsign=$1" > /tmp/qsl/qrz_query.txt ; then
+      echo "Erro consultando QRZ"
+      exit 1
+    fi
+  fi
+fi
+}
 
 checa_indicativo() {
 ##### BUREAU CHECKER
@@ -46,7 +76,6 @@ if ! [ -d /tmp/qsl ] ; then
 fi
 
 LISTAGEM_LABRE=/tmp/qsl/listagem-labre.txt
-CHAVE_QRZ=$(cat /tmp/qsl/chave_qrz.txt)
 
 # Se nao existir uma listagem inicial da LABRE, puxa ela.
 if ! [ -a $LISTAGEM_LABRE ] ; then
@@ -76,32 +105,30 @@ if [[ $(grep -w $1 $LISTAGEM_LABRE | grep "in use" | awk '{print $2}') ]] ; then
   exit 0
 fi
 
-# Pesquisa pelo usuario no QRZ
-if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$CHAVE_QRZ&callsign=$1" > /tmp/qsl/qrz_query.txt ; then
-  echo "Erro consultando QRZ"
-  exit 1
-fi
-
-# Se na consulta anterior houve problema de chave; gera uma nova
-if grep -i error /tmp/qsl/qrz_query.txt ; then 
-  if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?username=$MY_CALLSIGN&password=$QRZ_PASS" | \
-       grep -oPm1 "(?<=<Key>)[^<]+" > /tmp/qsl/chave_qrz.txt ; then
-    echo "Erro buscando chave"
-    exit 1
-  else
-# Tenta outra vez consultar, com a chave nova
-    CHAVE_QRZ=$(cat /tmp/qsl/chave_qrz.txt)
-    if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$CHAVE_QRZ&callsign=$1" > /tmp/qsl/qrz_query.txt ; then
-      echo "Erro consultando QRZ"
-      exit 1
-    fi
-  fi
-fi
+consulta_qrz $1
 
 # Busca por Bur* no campo qslmgr do QRZ
 grep -oPm1 "(?<=<qslmgr>)[^<]+" /tmp/qsl/qrz_query.txt | grep -i bur
 }
 ### END BUREAU CHECKER
+
+  if [ "$BOTAO" == "PREENCHE" ] ; then 
+    consulta_qrz $CALLSIGN
+    OP=$(grep -oPm1 "(?<=<fname>)[^<]+" /tmp/qsl/qrz_query.txt | tr -dc '[:alnum:] [:space:]' )
+    QTH=$(grep -oPm1 "(?<=<addr2>)[^<]+" /tmp/qsl/qrz_query.txt | tr -dc '[:alnum:] [:space:]' )
+    cat $RECORD_FORM | sed -e "/Watt/d" \
+                           -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+                           -e "s/\"F1f/$QRG\"/g" \
+                           -e "s/\"F2f/$TX_POWER\"/g" \
+                           -e "s/\"F3f/$CONTEST_ID\"/g" \
+                           -e "s/\"F4f/$CALLSIGN\"/g" \
+                           -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+                           -e "s/F6f/ value=\"$OP\"/g" \
+                           -e "s/\"F7f/$CALLSIGN\"/g" \
+                           -e "s/\"F8f/$QTH\"/g" \
+                           -e "s/F9f/ autofocus/g"
+     exit 0
+  fi
 
   QTD_CONTATOS=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN'")
   CONTATOS_ESTE_ANO=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN' 
