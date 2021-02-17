@@ -41,23 +41,23 @@ if [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
 consulta_qrz() {
 # Pesquisa pelo usuario no QRZ
 
-CHAVE_QRZ=$(cat /tmp/qsl/chave_qrz.txt)
+QRZ_XML_KEY=$(cat $QRZ_KEY_FILE)
 
-if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$CHAVE_QRZ&callsign=$1" > /tmp/qsl/qrz_query.txt ; then
+if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$QRZ_XML_KEY&callsign=$1" > $QRZ_QUERY_FILE ; then
   echo "Erro consultando QRZ"
   exit 1
 fi
 
 # Se na consulta anterior houve problema de chave; gera uma nova
-if grep -i error /tmp/qsl/qrz_query.txt ; then
+if grep -i error $QRZ_QUERY_FILE ; then
   if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?username=$MY_CALLSIGN&password=$QRZ_PASS" | \
-       grep -oPm1 "(?<=<Key>)[^<]+" > /tmp/qsl/chave_qrz.txt ; then
+       grep -oPm1 "(?<=<Key>)[^<]+" > $QRZ_KEY_FILE ; then
     echo "Erro buscando chave"
     exit 1
   else
 # Tenta outra vez consultar, com a chave nova
-    CHAVE_QRZ=$(cat /tmp/qsl/chave_qrz.txt)
-    if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$CHAVE_QRZ&callsign=$1" > /tmp/qsl/qrz_query.txt ; then
+    QRZ_XML_KEY=$(cat $QRZ_KEY_FILE)
+    if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$QRZ_XML_KEY&callsign=$1" > $QRZ_QUERY_FILE ; then
       echo "Erro consultando QRZ"
       exit 1
     fi
@@ -108,14 +108,14 @@ fi
 consulta_qrz $1
 
 # Busca por Bur* no campo qslmgr do QRZ
-grep -oPm1 "(?<=<qslmgr>)[^<]+" /tmp/qsl/qrz_query.txt | grep -i bur
+grep -oPm1 "(?<=<qslmgr>)[^<]+" $QRZ_QUERY_FILE | grep -i bur
 }
 ### END BUREAU CHECKER
 
   if [ "$BOTAO" == "PREENCHE" ] ; then 
     consulta_qrz $CALLSIGN
-    OP=$(grep -oPm1 "(?<=<fname>)[^<]+" /tmp/qsl/qrz_query.txt | tr -dc '[:alnum:] [:space:]' )
-    QTH=$(grep -oPm1 "(?<=<addr2>)[^<]+" /tmp/qsl/qrz_query.txt | tr -dc '[:alnum:] [:space:]' )
+    OP=$(grep -oPm1 "(?<=<fname>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
+    QTH=$(grep -oPm1 "(?<=<addr2>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
     cat $RECORD_FORM | sed -e "/Watt/d" \
                            -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                            -e "s/\"F1f/$QRG\"/g" \
@@ -232,11 +232,12 @@ QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
 
 # Calculate serial number
 SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(serial)+1 FROM contacts;")
+if ! [[ $SERIAL -ge 1 ]] ; then SERIAL=1 ; fi
 
 # Identify where I'm transmitting from. Sao Paulo or Votorantim
 if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
    GRID=$ALT_GRID
-   OBS="TX $ALT_GRID"
+   OBS="TX $ALT_GRID $OBS"
    ANTENNA_HF="$ALT_ANTENNA_HF"
    ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
 fi
