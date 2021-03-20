@@ -3,8 +3,9 @@
 echo "Content-type: text/html"
 echo ""
 
-# Source config stuff
+# Source config and functions
 source /etc/qso/qso.conf
+source /etc/qso/functions.sh
 
 if [ $DEBUG == 1 ] ; then
    exec 2>&1
@@ -12,9 +13,6 @@ if [ $DEBUG == 1 ] ; then
    set
    env
 fi
-
-# URL Decoder
-urldecode() { echo -e "$(sed 's/+/ /g;s/%\(..\)/\\x\1/g;')"; }
 
 # Read the form POST and sanitize it
 read -N $CONTENT_LENGTH QUERY_STRING_POST
@@ -31,105 +29,30 @@ ALT_D=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' |
 ALT_T=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
 CONTEST_ID=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
 OBS=$(echo ${QS[11]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
-BOTAO=$(echo ${QS[12]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 | tr "[:lower:]" "[:upper:]" )
+BUTTON=$(echo ${QS[12]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 | tr "[:lower:]" "[:upper:]" )
 
-###############################################################################
-############ THIS IS A LONG BLOCK. CALLSIGN & QSL CHECK. ######################
-###############################################################################
-if [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
+# Was the QRZ button pressed? If it is, QRZ it.
+if [ "$BUTTON" == "QRZ" ] ; then
 
-consulta_qrz() {
-# Pesquisa pelo usuario no QRZ
+  lookup_qrz $CALLSIGN
 
-QRZ_XML_KEY=$(cat $QRZ_KEY_FILE)
-
-if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$QRZ_XML_KEY&callsign=$1" > $QRZ_QUERY_FILE ; then
-  echo "Erro consultando QRZ"
-  exit 1
-fi
-
-# Se na consulta anterior houve problema de chave; gera uma nova
-if grep -i error $QRZ_QUERY_FILE ; then
-  if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?username=$MY_CALLSIGN&password=$QRZ_PASS" | \
-       grep -oPm1 "(?<=<Key>)[^<]+" > $QRZ_KEY_FILE ; then
-    echo "Erro buscando chave"
-    exit 1
-  else
-# Tenta outra vez consultar, com a chave nova
-    QRZ_XML_KEY=$(cat $QRZ_KEY_FILE)
-    if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?s=$QRZ_XML_KEY&callsign=$1" > $QRZ_QUERY_FILE ; then
-      echo "Erro consultando QRZ"
-      exit 1
-    fi
-  fi
-fi
-}
-
-checa_indicativo() {
-##### BUREAU CHECKER
-# Verifica se tem requisitos basicos
-if ! [ -d /tmp/qsl ] ; then
-  if ! mkdir /tmp/qsl ; then
-    echo "Unable to create /tmp/qsl directory"
-    exit 1
-  fi
-fi
-
-LISTAGEM_LABRE=/tmp/qsl/listagem-labre.txt
-
-# Se nao existir uma listagem inicial da LABRE, puxa ela.
-if ! [ -a $LISTAGEM_LABRE ] ; then
-  if ! lynx -dump -connect_timeout=5 -read_timeout=5 \
-  http://www.labre-sp.org.br/saa/publico/bureau_online_indicativos.php > $LISTAGEM_LABRE ; then
-    echo "Erro recuperando listagem inicial da Labre"
-    exit 1
-  fi
-fi
-
-# Testa se listagem da labre e' atual. Se for mais velha de 1 dia, puxa nova
-if [ $(( $(date +%s) - $(stat -c'%Y' $LISTAGEM_LABRE) )) -ge 86400 ] ; then
-lynx -dump -connect_timeout=5 -read_timeout=5 \
-  http://www.labre-sp.org.br/saa/publico/bureau_online_indicativos.php > /tmp/qsl/listagem-nova.txt
-# Testa se listagem nova da LABRE e' atual e correta
-  if ! grep $MY_CALLSIGN /tmp/qsl/listagem-nova.txt | grep "in use" >/dev/null ; then
-    echo "Listagem com problemas, nao atualizei."
-    exit 1
-  else
-    mv /tmp/qsl/listagem-nova.txt $LISTAGEM_LABRE
-  fi
-fi
-
-# Testa indicativo contra base Labreana SP. Se der positivo; para p/ aqui
-if [[ $(grep -w $1 $LISTAGEM_LABRE | grep "in use" | awk '{print $2}') ]] ; then
-  echo "Usuario Labreano"
+  OP=$(grep -oPm1 "(?<=<fname>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
+  QTH=$(grep -oPm1 "(?<=<addr2>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
+  cat $RECORD_FORM | sed -e "/Watt/d" \
+                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+                         -e "s/\"F1f/$QRG\"/g" \
+                         -e "s/\"F2f/$TX_POWER\"/g" \
+                         -e "s/\"F3f/$CONTEST_ID\"/g" \
+                         -e "s/\"F4f/$CALLSIGN\"/g" \
+                         -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+                         -e "s/F6f/ value=\"$OP\"/g" \
+                         -e "s/\"F7f/$CALLSIGN\"/g" \
+                         -e "s/\"F8f/$QTH\"/g" \
+                         -e "s/F9f/ autofocus/g"
   exit 0
-fi
 
-consulta_qrz $1
-
-# Busca por Bur* no campo qslmgr do QRZ
-grep -oPm1 "(?<=<qslmgr>)[^<]+" $QRZ_QUERY_FILE | grep -i bur
-}
-### END BUREAU CHECKER
-
-  if [ "$BOTAO" == "PREENCHE" ] ; then 
-    consulta_qrz $CALLSIGN
-    OP=$(grep -oPm1 "(?<=<fname>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
-    QTH=$(grep -oPm1 "(?<=<addr2>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
-    cat $RECORD_FORM | sed -e "/Watt/d" \
-                           -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                           -e "s/\"F1f/$QRG\"/g" \
-                           -e "s/\"F2f/$TX_POWER\"/g" \
-                           -e "s/\"F3f/$CONTEST_ID\"/g" \
-                           -e "s/\"F4f/$CALLSIGN\"/g" \
-                           -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
-                           -e "s/F6f/ value=\"$OP\"/g" \
-                           -e "s/\"F7f/$CALLSIGN\"/g" \
-                           -e "s/\"F8f/$QTH\"/g" \
-                           -e "s/F9f/ autofocus/g"
-     exit 0
-  fi
-
+# No callsign, no op name, no contest ID - this is a lookup request.
+elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
   QTD_CONTATOS=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN'")
   CONTATOS_ESTE_ANO=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN' 
                                   AND strftime('%Y',qtr,'unixepoch') = strftime('%Y','now');")
@@ -138,6 +61,7 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" $QRZ_QUERY_FILE | grep -i bur
     QSLS=$(sqlite $SQDB "SELECT COUNT(*) FROM qsl WHERE callsign = '$CALLSIGN'")
     OP=$(sqlite $SQDB "SELECT op FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
     QTH=$(sqlite $SQDB "SELECT qth FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
+
     if [ -z "$MODE" ] ; then MODE="FM" ; fi
     cat $RECORD_FORM | sed -e "/Watt/d" \
                            -e "s/\"$MODE\"/\"$MODE\" checked/g" \
@@ -160,7 +84,7 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" $QRZ_QUERY_FILE | grep -i bur
       awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD><center><a href=conta-contatos.cgi?qsl="$7">"$6"</a></center></td></tr>"}'
       echo "</table>"
     else
-      HAS_BUREAU=$(checa_indicativo $CALLSIGN)
+      HAS_BUREAU=$(check_bureau $CALLSIGN)
       echo "<form action="/cgi-bin/registra-qsl.cgi" method="POST"><table border><tr>"
       if [ -z "$HAS_BUREAU" ] ; then
         echo "<TD><B>No Bureau</b></td>"
@@ -176,34 +100,36 @@ grep -oPm1 "(?<=<qslmgr>)[^<]+" $QRZ_QUERY_FILE | grep -i bur
           <h3>Este ano: $CONTATOS_ESTE_ANO</h3>"
 
     echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
-    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
-                             WHERE callsign = '$CALLSIGN' OR op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
+    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy 
+                                 FROM contacts WHERE callsign = '$CALLSIGN' OR op LIKE '%$CALLSIGN%' 
+                                 ORDER BY qtr DESC;" |
     awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
-    echo "</table>
 
+    echo "</table>
 <!-- QRZ Log Block -->
 <P><iframe align=\"top\" frameborder=\"0\" height=\"520\" scrolling=\"yes\" src=\"https://logbook.qrz.com/lbstat/$MY_CALLSIGN/\" width=\"800\"></iframe>
-
 </body>
 </html>"
+
     exit 0
   fi
-    if [ -z "$MODE" ] ; then MODE="FM" ; fi
-    cat $RECORD_FORM | sed -e "/Watt/d" \
-                           -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                           -e "s/\"F1f/$QRG\"/g" \
-                           -e "s/\"F2f/$TX_POWER\"/g" \
-                           -e "s/\"F3f/$CONTEST_ID\"/g" \
-                           -e "s/\"F4f/$CALLSIGN\"/g" \
-                           -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
-                           -e "s/F6f/ autofocus/g" \
-                           -e "s/\"F7f/$CALLSIGN\"/g"
-    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>Obs.:</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
-    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
-                             WHERE op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
-    awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
-    echo "</table>"
 
+  if [ -z "$MODE" ] ; then MODE="FM" ; fi
+
+  cat $RECORD_FORM | sed -e "/Watt/d" \
+                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+                         -e "s/\"F1f/$QRG\"/g" \
+                         -e "s/\"F2f/$TX_POWER\"/g" \
+                         -e "s/\"F3f/$CONTEST_ID\"/g" \
+                         -e "s/\"F4f/$CALLSIGN\"/g" \
+                         -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+                         -e "s/F6f/ autofocus/g" \
+                         -e "s/\"F7f/$CALLSIGN\"/g"
+  echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>Obs.:</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
+  sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy 
+                               FROM contacts WHERE op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
+  awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
+  echo "</table>"
   exit 0
 fi
 
