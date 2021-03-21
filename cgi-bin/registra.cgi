@@ -18,18 +18,18 @@ fi
 read -N $CONTENT_LENGTH QUERY_STRING_POST
 QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
 QRG=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
-CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 | tr "[:lower:]" "[:upper:]" )
-OP=$(echo ${QS[1]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-QTH=$(echo ${QS[2]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
+CALLSIGN=$(echo ${QS[0]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 )
+OP=$(echo ${QS[1]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
+QTH=$(echo ${QS[2]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
-MODE=$(echo ${QS[5]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-SIG_MY=$(echo ${QS[6]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
-SIG_HIS=$(echo ${QS[7]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 | tr "[:lower:]" "[:upper:]" )
+MODE=$(echo ${QS[5]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
+SIG_MY=$(echo ${QS[6]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
+SIG_HIS=$(echo ${QS[7]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
 ALT_D=$(echo ${QS[8]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -11 )
 ALT_T=$(echo ${QS[9]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -5 ) 
-CONTEST_ID=$(echo ${QS[10]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 | tr "[:lower:]" "[:upper:]" )
-OBS=$(echo ${QS[11]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 | tr "[:lower:]" "[:upper:]" )
-BUTTON=$(echo ${QS[12]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 | tr "[:lower:]" "[:upper:]" )
+CONTEST_ID=$(echo ${QS[10]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -25 )
+OBS=$(echo ${QS[11]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 )
+BUTTON=$(echo ${QS[12]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 )
 
 # Was the QRZ button pressed? If it is, QRZ it.
 if [ "$BUTTON" == "QRZ" ] ; then

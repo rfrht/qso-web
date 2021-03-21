@@ -17,7 +17,7 @@ fi
 if [ -z "$QUERY_STRING" ] ; then
   read -N $CONTENT_LENGTH QUERY_STRING_POST
   QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
-  CALLSIGN=$(echo ${QS[0]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 | tr "[:lower:]" "[:upper:]" )
+  CALLSIGN=$(echo ${QS[0]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 )
 else
   # Clicked to confirm a QSL card
   QSL_SERIAL=$(echo $QUERY_STRING | awk -F = '{print $2}')
