@@ -52,7 +52,7 @@ if [[ $QTD_CONTATOS -ge 1 ]] ; then
     awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD><center><a href=conta-contatos.cgi?qsl="$7">"$6"</a></center></td></tr>"}'
     echo "</table>"
   else
-    HAS_BUREAU=$(checa_indicativo $CALLSIGN)
+    HAS_BUREAU=$(check_bureau $CALLSIGN)
     echo "<form action="/cgi-bin/registra-qsl.cgi" method="POST"><table border><tr>"
     if [ -z "$HAS_BUREAU" ] ; then 
       echo "<TD><B>No Bureau</b></td>"
