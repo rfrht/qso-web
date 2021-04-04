@@ -169,37 +169,41 @@ if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
 fi
 
 # Sort out the band
-BAND=$(echo $QRG | awk -F . '{print $1}')
-if   [[ $BAND == "1" ]] ; then BAND=160m
-elif [[ $BAND == "3" ]] ; then BAND=80m
-elif [[ $BAND == "5" ]] ; then BAND=60m
-elif [[ $BAND == "7" ]] ; then BAND=40m
-elif [[ $BAND == "10" ]] ; then BAND=30m
-elif [[ $BAND == "14" ]] ; then BAND=20m
-elif [[ $BAND == "18" ]] ; then BAND=17m
-elif [[ $BAND == "21" ]] ; then BAND=15m
-elif [[ $BAND == "24" ]] ; then BAND=12m
-elif [[ $BAND -ge "28" && $BAND -lt "30" ]] ; then BAND=10m
-elif [[ $BAND -ge "50" && $BAND -lt "54" ]] ; then BAND=6m
-elif [[ $BAND -ge "144" && $BAND -lt "148" ]] ; then BAND=2m
-elif [[ $BAND -ge "222" && $BAND -lt "225" ]] ; then BAND=1.25m
-elif [[ $BAND -ge "420" && $BAND -lt "450" ]] ; then BAND=70cm
-elif [[ $BAND -ge "902" && $BAND -lt "928" ]] ; then BAND=33cm
-elif [[ $BAND -ge "1240" && $BAND -lt "1300" ]] ; then BAND=23cm
-elif [[ $BAND -ge "2300" && $BAND -lt "2450" ]] ; then BAND=13cm
-elif [[ $BAND -ge "3300" && $BAND -lt "3500" ]] ; then BAND=9cm
-elif [[ $BAND -ge "5650" && $BAND -lt "5925" ]] ; then BAND=6cm
-elif [[ $BAND -ge "10000" && $BAND -lt "10500" ]] ; then BAND=3cm
-elif [[ $BAND -ge "24000" && $BAND -lt "24250" ]] ; then BAND=1.25cm
-elif [[ $BAND -ge "47000" && $BAND -lt "47200" ]] ; then BAND=6mm
-elif [[ $BAND -ge "75500" && $BAND -lt "81000" ]] ; then BAND=4mm
-elif [[ $BAND -ge "119980" && $BAND -lt "120020" ]] ; then BAND=2.5mm
-elif [[ $BAND -ge "142000" && $BAND -lt "149000" ]] ; then BAND=2mm
-elif [[ $BAND -ge "241000" && $BAND -lt "250000" ]] ; then BAND=1mm
+get_band() {
+FREQ_TEST=$(echo $1 | awk -F . '{print $1}')
+if   [[ $FREQ_TEST == "1" ]] ; then echo "160m"
+elif [[ $FREQ_TEST == "3" ]] ; then echo "80m"
+elif [[ $FREQ_TEST == "5" ]] ; then echo "60m"
+elif [[ $FREQ_TEST == "7" ]] ; then echo "40m"
+elif [[ $FREQ_TEST == "10" ]] ; then echo "30m"
+elif [[ $FREQ_TEST == "14" ]] ; then echo "20m"
+elif [[ $FREQ_TEST == "18" ]] ; then echo "17m"
+elif [[ $FREQ_TEST == "21" ]] ; then echo "15m"
+elif [[ $FREQ_TEST == "24" ]] ; then echo "12m"
+elif [[ $FREQ_TEST -ge "28" && $FREQ_TEST -lt "30" ]] ; then echo "10m"
+elif [[ $FREQ_TEST -ge "50" && $FREQ_TEST -lt "54" ]] ; then echo "6m"
+elif [[ $FREQ_TEST -ge "144" && $FREQ_TEST -lt "148" ]] ; then echo "2m"
+elif [[ $FREQ_TEST -ge "222" && $FREQ_TEST -lt "225" ]] ; then echo "1.25m"
+elif [[ $FREQ_TEST -ge "420" && $FREQ_TEST -lt "450" ]] ; then echo "70cm"
+elif [[ $FREQ_TEST -ge "902" && $FREQ_TEST -lt "928" ]] ; then echo "33cm"
+elif [[ $FREQ_TEST -ge "1240" && $FREQ_TEST -lt "1300" ]] ; then echo "23cm"
+elif [[ $FREQ_TEST -ge "2300" && $FREQ_TEST -lt "2450" ]] ; then echo "13cm"
+elif [[ $FREQ_TEST -ge "3300" && $FREQ_TEST -lt "3500" ]] ; then echo "9cm"
+elif [[ $FREQ_TEST -ge "5650" && $FREQ_TEST -lt "5925" ]] ; then echo "6cm"
+elif [[ $FREQ_TEST -ge "10000" && $FREQ_TEST -lt "10500" ]] ; then echo "3cm"
+elif [[ $FREQ_TEST -ge "24000" && $FREQ_TEST -lt "24250" ]] ; then echo "1.25cm"
+elif [[ $FREQ_TEST -ge "47000" && $FREQ_TEST -lt "47200" ]] ; then echo "6mm"
+elif [[ $FREQ_TEST -ge "75500" && $FREQ_TEST -lt "81000" ]] ; then echo "4mm"
+elif [[ $FREQ_TEST -ge "119980" && $FREQ_TEST -lt "120020" ]] ; then echo "2.5mm"
+elif [[ $FREQ_TEST -ge "142000" && $FREQ_TEST -lt "149000" ]] ; then echo "2mm"
+elif [[ $FREQ_TEST -ge "241000" && $FREQ_TEST -lt "250000" ]] ; then echo "1mm"
 else
      echo "Could not match a valid band. Skipping record."
-     exit 0
+     exit 1
 fi
+}
+
+BAND=$(get_band $QRG)
 
 # Detect wrong mode - if adding the "+" or "-", infer it's FT8.
 # But make an exception for JT65.
@@ -259,14 +263,28 @@ if [ $MODE == "WSPR" ] ; then
       echo "<H1>PREENCHIMENTO INCORRETO</H1>"
       exit 1
    fi
-elif [ ! -z "$CONTEST_ID" ] ; then
-   OBS=$(echo "$CONTEST_ID // $QTH")
+elif [ -n "$CONTEST_ID" ] ; then
+   # Contest Mode
+   OBS=$(echo "$CONTEST_ID // $GRID")
+   for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
+      # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
+      CONTACT_FREQ=$(sqlite $SQDB "SELECT qrg FROM contacts WHERE serial = '$i'")
+      CONTACT_MODE=$(sqlite $SQDB "SELECT mode FROM contacts WHERE serial = '$i'")
+      if [[ $(get_band $CONTACT_FREQ) == $(get_band $QRG) ]] && [[ $CONTACT_MODE == $MODE ]] ; then
+         echo "This is a dupe."
+         exit 1
+      fi      
+   done
+   OBS="$OBS // $OP"
+   # Wipe out the OP field in contest mode, and use it as the place to 
+   # use it as the reporting field during contest mode
+   OP=""
    SIG_MY=59
    SIG_HIS=59
-## Special sauce for FT8
 elif [ $MODE == "FT8" ] ; then
-   # Avoid FT8 logs with more than 25 dB; probably on error
+   # Special sauce for FT8
    if [[ $SIG_MY -ge 25 || $SIG_HIS -ge 25 ]] ; then
+      # Avoid FT8 logs with more than 25 dB; probably on error
       echo "<h1>MAIS DE 25 dB EM FT8???</h1>"
       exit 1
    fi
