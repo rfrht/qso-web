@@ -5,11 +5,20 @@ urldecode() {
 
 # Generate new QRZ key file for further transactions
 qrz_generate_new_key() {
-    if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?username=$MY_CALLSIGN&password=$QRZ_PASS" | \
-         grep -oPm1 "(?<=<Key>)[^<]+" > $QRZ_KEY_FILE ; then
-      echo "Error creating QRZ key"
+  # Check for directory structure - and fix the lack of it
+  if ! [ -d /tmp/qsl ] ; then
+    if ! mkdir /tmp/qsl ; then
+      echo "Unable to create /tmp/qsl directory"
       exit 1
     fi
+  fi
+
+  # Create new QRZ key
+  if ! curl -m 10 -s "https://xmldata.qrz.com/xml/current/?username=$MY_CALLSIGN&password=$QRZ_PASS" | \
+     grep -oPm1 "(?<=<Key>)[^<]+" > $QRZ_KEY_FILE ; then
+     echo "Error creating QRZ key"
+     exit 1
+  fi
 }
 
 # Lookup for operator in QRZ database
@@ -76,14 +85,6 @@ lookup_labre() {
 
 # Bureau Checker
 check_bureau() {
-  # Check for directory presence - and fix the lack of it
-  if ! [ -d /tmp/qsl ] ; then
-    if ! mkdir /tmp/qsl ; then
-      echo "Unable to create /tmp/qsl directory"
-      exit 1
-    fi
-  fi
-
   # If operator is not present in Labre database, lookup in QRZ.
   #### COMMENTED OUT SINCE LABRE DB IS OUT OF SERVICE
   #if ! lookup_labre $1 ; then

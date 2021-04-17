@@ -15,12 +15,13 @@ if [ $DEBUG == 1 ] ; then
 fi
 
 # Read the form POST and sanitize it
+# The string order is dictated in the HTML form order.
 read -N $CONTENT_LENGTH QUERY_STRING_POST
 QS=($(echo $QUERY_STRING_POST | tr '&' ' '))
-QRG=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
 CALLSIGN=$(echo ${QS[0]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -15 )
 OP=$(echo ${QS[1]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
 QTH=$(echo ${QS[2]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 )
+QRG=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
 TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
 MODE=$(echo ${QS[5]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
 SIG_MY=$(echo ${QS[6]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
@@ -31,8 +32,8 @@ CONTEST_ID=$(echo ${QS[10]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:pr
 OBS=$(echo ${QS[11]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 )
 BUTTON=$(echo ${QS[12]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 )
 
-# Was the QRZ button pressed? If it is, QRZ it.
 if [ "$BUTTON" == "QRZ" ] ; then
+# Was the QRZ button pressed? If it is, QRZ it.
 
   lookup_qrz $CALLSIGN
 
@@ -51,18 +52,23 @@ if [ "$BUTTON" == "QRZ" ] ; then
                          -e "s/F9f/ autofocus/g"
   exit 0
 
-# No callsign, no op name, no contest ID - this is a lookup request.
 elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
-  QTD_CONTATOS=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN'")
-  CONTATOS_ESTE_ANO=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN' 
+# No callsign, no op name, no contest ID - this is a lookup request.
+
+  QTY_CONTACTS=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN'")
+  CONTACTS_THIS_YEAR=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN' 
                                   AND strftime('%Y',qtr,'unixepoch') = strftime('%Y','now');")
 
-  if [[ $QTD_CONTATOS -ge 1 ]] ; then
+  if [[ $QTY_CONTACTS -ge 1 ]] ; then
+  # We got some contacts. List them all. Fetch QSL sent QSL if any
+
     QSLS=$(sqlite $SQDB "SELECT COUNT(*) FROM qsl WHERE callsign = '$CALLSIGN'")
     OP=$(sqlite $SQDB "SELECT op FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
     QTH=$(sqlite $SQDB "SELECT qth FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
 
     if [ -z "$MODE" ] ; then MODE="FM" ; fi
+    # If we set no mode; default to FM.
+
     cat $RECORD_FORM | sed -e "/Watt/d" \
                            -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                            -e "s/\"F1f/$QRG\"/g" \
@@ -76,16 +82,23 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
                            -e "s/F9f/ autofocus/g"
 
     if [[ $QSLS -ge 1 ]] ; then
+    # If sent QSL to this contact, list them.
+
       echo "<P>QSLs pagos:</P>"
       echo "<table border><tr><td><b>Callsign</td><TD><B>Method</td><td><b>Date</td><td><b>Via</td><td><b>Type</td><td><b>X/O</td></tr>"
-      sqlite -separator ',' $SQDB "SELECT callsign, method, datetime(date,'unixepoch'), via, type, 
-                                   CASE xo WHEN 0 THEN 'O' WHEN 1 THEN 'X' END, rowid FROM qsl
-                                   WHERE callsign='$CALLSIGN' ORDER BY date" |
+
+      sqlite -separator ',' $SQDB "
+             SELECT callsign, method, datetime(date,'unixepoch'), via, type, 
+             CASE xo WHEN 0 THEN 'O' WHEN 1 THEN 'X' END, rowid FROM qsl
+             WHERE callsign='$CALLSIGN' ORDER BY date" |
       awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD><center><a href=conta-contatos.cgi?qsl="$7">"$6"</a></center></td></tr>"}'
+
       echo "</table>"
     else
+    # No sent QSLs, check for bureau listing in QRZ
+
       HAS_BUREAU=$(check_bureau $CALLSIGN)
-      echo "<form action="/cgi-bin/registra-qsl.cgi" method="POST"><table border><tr>"
+      echo "<form action='/cgi-bin/registra-qsl.cgi' method='POST'><table border><tr>"
       if [ -z "$HAS_BUREAU" ] ; then
         echo "<TD><B>No Bureau</b></td>"
       else
@@ -96,13 +109,16 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
       <input type="SUBMIT" value="Pagar"></form></td></tr></table>"
     fi
 
-    echo "<h2>Contatos: $QTD_CONTATOS</h2>
-          <h3>Este ano: $CONTATOS_ESTE_ANO</h3>"
+    echo "<h2>Contatos: $QTY_CONTACTS</h2>
+          <h3>Este ano: $CONTACTS_THIS_YEAR</h3>"
 
     echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
-    sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy 
-                                 FROM contacts WHERE callsign = '$CALLSIGN' OR op LIKE '%$CALLSIGN%' 
-                                 ORDER BY qtr DESC;" |
+
+    sqlite -separator ',' $SQDB "
+           SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), 
+           qth, mode, serial, power, obs, sighis, sigmy 
+           FROM contacts WHERE callsign = '$CALLSIGN' 
+           OR op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
     awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
 
     echo "</table>
@@ -115,7 +131,7 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
   fi
 
   if [ -z "$MODE" ] ; then MODE="FM" ; fi
-
+  # Again - if no mode set, default to FM.
   cat $RECORD_FORM | sed -e "/Watt/d" \
                          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                          -e "s/\"F1f/$QRG\"/g" \
@@ -133,25 +149,26 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
   exit 0
 fi
 
-# Bail if no proper mode is selected
 if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
+# Bail if no proper mode is selected
 
-# Check for impossible power modes
 if [[ $TX_POWER -lt 5 || $TX_POWER -gt 100 ]] ; then echo "Check Power - outside nominals" ; exit 1 ; fi
+# Check for impossible power modes
 
+if [[ $TX_POWER -gt 40 && $MODE == "AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
 # My transceiver is only capable of 40W in AM mode
 # Fails if logging more than 40W in AM
-if [[ $TX_POWER -gt 40 && $MODE == "AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
 
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
+# If no date and time provided, get currenct date/time.
    EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
 else
    EPOCH=$(TZ=UTC date +%s)
 fi
 
 if [ -z $EPOCH ] ; then echo "Erro de Data" ; exit 1 ; fi
-
+# If epoch does not resolve, fail.
 QTR=$(TZ=UTC date +%c --date="@$EPOCH")
 QSO_DATE=$(TZ=UTC date +%Y%m%d --date="@$EPOCH")
 QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
@@ -159,16 +176,21 @@ QSO_TIME=$(TZ=UTC date +%H%M --date="@$EPOCH")
 # Calculate serial number
 SERIAL=$(/usr/bin/sqlite $SQDB "SELECT MAX(serial)+1 FROM contacts;")
 if ! [[ $SERIAL -ge 1 ]] ; then SERIAL=1 ; fi
+# If there's no serial number in SQLite database (new database),
+# declare serial as 1.
 
 # Identify where I'm transmitting from. Sao Paulo or Votorantim
 if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
+# If my IP address doesn't come from my internal networks in SP,
+# use the ALT_GRID clause from qso.conf as my source TX
+# And declare the other antennas too.
    GRID=$ALT_GRID
    OBS="TX $ALT_GRID $OBS"
    ANTENNA_HF="$ALT_ANTENNA_HF"
    ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
 fi
 
-# Sort out the band
+# Sort out the band. Needed for LoTW or other frequency comparisons
 get_band() {
 FREQ_TEST=$(echo $1 | awk -F . '{print $1}')
 if   [[ $FREQ_TEST == "1" ]] ; then echo "160m"
@@ -215,9 +237,9 @@ fi
 
 # Calculate propagation mode
 FREQKC=$(echo $QRG | tr -dc '[:digit:]')
-# Repeaters
 if [[ $FREQKC -ge 145200 && $FREQKC -le 145500 ]] ||
    [[ $FREQKC -ge 146600 && $FREQKC -le 147400 ]]
+# It's a repeater! Set the right propagation mode.
 then
    PROP_MODE="RPT"
 fi
@@ -264,7 +286,7 @@ if [ $MODE == "WSPR" ] ; then
       exit 1
    fi
 elif [ -n "$CONTEST_ID" ] ; then
-   # Contest Mode
+   # If filed something in "Contest" field, enter Contest Mode.
    OBS=$(echo "$CONTEST_ID // $GRID")
    for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
       # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
@@ -275,9 +297,11 @@ elif [ -n "$CONTEST_ID" ] ; then
          exit 1
       fi      
    done
-   OBS="$OBS // $OP"
    # Wipe out the OP field in contest mode, and use it as the place to 
-   # use it as the reporting field during contest mode
+   # use it as the reporting field during contest mode. And append the
+   # exchange in OBS field.
+   # TODO: A special Note field for Contest mode in eQSL logs.
+   OBS="$OBS // $OP"
    OP=""
    SIG_MY=59
    SIG_HIS=59
@@ -313,6 +337,7 @@ ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_U
 
 # LotW
 if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW_ITUZ && -n $LOTW_KEY && -n $LOTW_DXCC ]] ; then
+# Check for all LoTW data requirement prior to move forward.
   LOTW_STRIPPED_CERT=$(grep -v "\-\-\-" $LOTW_CERT)
   LOTW_QSO_DATE=$(TZ=UTC date +%F --date="@$EPOCH")
   LOTW_QSO_QTR=$(TZ=UTC date +%TZ --date="@$EPOCH")
