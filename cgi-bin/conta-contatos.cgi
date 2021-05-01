@@ -41,6 +41,15 @@ echo "
 
 TZ='America/Sao_Paulo' date ; echo "<P>"
 
+echo "<h2>Contatos: $QTD_CONTATOS</h2>
+<h3>Este ano: $CONTATOS_ESTE_ANO</h3>"
+
+echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
+
+echo "$CONTATOS"
+
+echo "</table> <P>"
+
 if [[ $QTD_CONTATOS -ge 1 ]] ; then
   QSLS=$(sqlite $SQDB "SELECT COUNT(*) FROM qsl WHERE callsign = '$CALLSIGN'")
   if [[ $QSLS -ge 1 ]] ; then
@@ -54,7 +63,7 @@ if [[ $QTD_CONTATOS -ge 1 ]] ; then
   else
     HAS_BUREAU=$(check_bureau $CALLSIGN)
     echo "<form action="/cgi-bin/registra-qsl.cgi" method="POST"><table border><tr>"
-    if [ -z "$HAS_BUREAU" ] ; then 
+    if [ -z "$HAS_BUREAU" ] ; then
       echo "<TD><B>No Bureau</b></td>"
     else
       echo "<td>$HAS_BUREAU</td>"
@@ -65,15 +74,8 @@ if [[ $QTD_CONTATOS -ge 1 ]] ; then
   fi
 fi
 
-echo "<h2>Contatos: $QTD_CONTATOS</h2>
-<h3>Este ano: $CONTATOS_ESTE_ANO</h3>"
 
-echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
-
-echo "$CONTATOS"
-
-echo "</table>
-</body>
+echo "</body>
 </html>"
 
 exit 0

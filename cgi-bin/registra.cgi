@@ -32,6 +32,17 @@ CONTEST_ID=$(echo ${QS[10]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:pr
 OBS=$(echo ${QS[11]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 )
 BUTTON=$(echo ${QS[12]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -10 )
 
+# Identify where I'm transmitting from. Sao Paulo or Votorantim
+if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
+# If my IP address doesn't come from my internal networks in SP,
+# use the ALT_GRID clause from qso.conf as my source TX
+# And declare the other antennas too.
+   GRID=$ALT_GRID
+   OBS="TX $ALT_GRID $OBS"
+   ANTENNA_HF="$ALT_ANTENNA_HF"
+   ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
+fi
+
 if [ "$BUTTON" == "QRZ" ] ; then
 # Was the QRZ button pressed? If it is, QRZ it.
 
@@ -179,17 +190,6 @@ if ! [[ $SERIAL -ge 1 ]] ; then SERIAL=1 ; fi
 # If there's no serial number in SQLite database (new database),
 # declare serial as 1.
 
-# Identify where I'm transmitting from. Sao Paulo or Votorantim
-if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
-# If my IP address doesn't come from my internal networks in SP,
-# use the ALT_GRID clause from qso.conf as my source TX
-# And declare the other antennas too.
-   GRID=$ALT_GRID
-   OBS="TX $ALT_GRID $OBS"
-   ANTENNA_HF="$ALT_ANTENNA_HF"
-   ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
-fi
-
 # Sort out the band. Needed for LoTW or other frequency comparisons
 get_band() {
 FREQ_TEST=$(echo $1 | awk -F . '{print $1}')
@@ -286,8 +286,11 @@ if [ $MODE == "WSPR" ] ; then
       exit 1
    fi
 elif [ -n "$CONTEST_ID" ] ; then
+   # Require something in the Operator/Exchange field, otherwise stop.
+   if [ -z "$OP" ] ; then echo "No Exchange data" ; exit 1 ; fi 
+
    # If filed something in "Contest" field, enter Contest Mode.
-   OBS=$(echo "$CONTEST_ID // $GRID")
+   OBS=$(echo "$CONTEST_ID // TX $GRID")
    for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
       # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
       CONTACT_FREQ=$(sqlite $SQDB "SELECT qrg FROM contacts WHERE serial = '$i'")
@@ -305,6 +308,15 @@ elif [ -n "$CONTEST_ID" ] ; then
    OP=""
    SIG_MY=59
    SIG_HIS=59
+
+   # Print Contest mode banner
+   echo "<table border="0" cellpadding="2" cellspacing="1" bgcolor="#ff0000">
+   <td valign="center">
+   <font face="verdana" size="+1" color="white"><b>CONTEST -"
+   sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE obs LIKE '$CONTEST_ID%'"
+   echo " contacts</font>
+   </td> </tr></table>"
+
 elif [ $MODE == "FT8" ] ; then
    # Special sauce for FT8
    if [[ $SIG_MY -ge 25 || $SIG_HIS -ge 25 ]] ; then
@@ -315,11 +327,22 @@ elif [ $MODE == "FT8" ] ; then
 fi
 
 # Reuse fields from this QSO to the next one
-cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
-                       -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                       -e "s/\"F2f/$TX_POWER\"/g" \
-                       -e "s/\"F3f/$CONTEST_ID\"/g" \
-                       -e "s/\"F4f/$CALLSIGN\"/g"
+if [ -n "$CONTEST_ID" ] ; then
+  # It's a contest. Replace "Operador" with "Exchange"
+  cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
+                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+                         -e "s/\"F2f/$TX_POWER\"/g" \
+                         -e "s/\"F3f/$CONTEST_ID\"/g" \
+                         -e "s/\"F4f/$CALLSIGN\"/g" \
+                         -e "s/Operador/Exchange/g"
+else
+  # Regular QSO - Non-Contest
+  cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
+                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+                         -e "s/\"F2f/$TX_POWER\"/g" \
+                         -e "s/\"F3f/$CONTEST_ID\"/g" \
+                         -e "s/\"F4f/$CALLSIGN\"/g"
+fi
 
 # ===== 3RD PARTY SYSTEM LOG - String prep =====
 # QRZ
