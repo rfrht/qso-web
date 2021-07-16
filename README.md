@@ -50,7 +50,7 @@ Certificate bag
 Bag Attributes
     localKeyID: CC AC 6E 08 94 09 6E 7E B7 5B 2E 90 1A 24 2E CE 10 07 35 5D 
     friendlyName: TrustedQSL user certificate
-subject=/1.3.6.1.4.1.12348.1.1=PY2RAF/CN=Rodrigo A B Freire/emailAddress=py2raf@rf3.org
+subject=/1.3.6.1.4.1.12348.1.1=PY2RAF/CN=Rodrigo A B Freire/emailAddress=man@rf3.org
 issuer=/C=US/ST=CT/L=Newington/O=American Radio Relay League/OU=Logbook of the World/CN=Logbook of the World Production CA/DC=arrl.org/emailAddress=lotw@arrl.org
 -----BEGIN CERTIFICATE-----
 MIIEtTCCA52gAwIBAgIDBw2TMA0GCSqGSIb3DQEBCwUAMIHYMQswCQYDVQQGEwJV
