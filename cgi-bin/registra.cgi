@@ -22,7 +22,7 @@ CALLSIGN=$(echo ${QS[0]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print
 OP=$(echo ${QS[1]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
 QTH=$(echo ${QS[2]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -40 )
 QRG=$(echo ${QS[3]} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -8 )
-TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -3 )
+TX_POWER=$(echo ${QS[4]} | awk -F = '{print $2}' | tr -dc '[:digit:]' | cut -b -4 )
 MODE=$(echo ${QS[5]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
 SIG_MY=$(echo ${QS[6]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
 SIG_HIS=$(echo ${QS[7]^^} | awk -F = '{print $2}' | urldecode | tr -dc '[:print:]' | cut -b -18 )
@@ -50,6 +50,10 @@ if [ "$BUTTON" == "QRZ" ] ; then
 
   OP=$(grep -oPm1 "(?<=<fname>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
   QTH=$(grep -oPm1 "(?<=<addr2>)[^<]+" $QRZ_QUERY_FILE | tr -dc '[:alnum:] [:space:]' )
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
+  # Escape slashed callsigns to please sed
+
   cat $RECORD_FORM | sed -e "/Watt/d" \
                          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                          -e "s/\"F1f/$QRG\"/g" \
@@ -60,7 +64,12 @@ if [ "$BUTTON" == "QRZ" ] ; then
                          -e "s/F6f/ value=\"$OP\"/g" \
                          -e "s/\"F7f/$CALLSIGN\"/g" \
                          -e "s/\"F8f/$QTH\"/g" \
-                         -e "s/F9f/ autofocus/g"
+                         -e "s/F9f/ autofocus/g" \
+			 -e "s/\"FAf/$CALLSIGN\"/g"
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
+  # Revert escaped slashed callsign
+
   exit 0
 
 elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
@@ -80,6 +89,9 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
     if [ -z "$MODE" ] ; then MODE="FM" ; fi
     # If we set no mode; default to FM.
 
+    if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
+    # Escape slashed callsigns to please sed
+
     cat $RECORD_FORM | sed -e "/Watt/d" \
                            -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                            -e "s/\"F1f/$QRG\"/g" \
@@ -90,7 +102,11 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
                            -e "s/F6f/ value=\"$OP\"/g" \
                            -e "s/\"F7f/$CALLSIGN\"/g" \
                            -e "s/\"F8f/$QTH\"/g" \
-                           -e "s/F9f/ autofocus/g"
+                           -e "s/F9f/ autofocus/g" \
+			   -e "s/\"FAf/$CALLSIGN\"/g"
+
+    if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
+    # Revert escaped slashed callsign
 
     if [[ $QSLS -ge 1 ]] ; then
     # If sent QSL to this contact, list them.
@@ -123,7 +139,7 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
     echo "<h2>Contatos: $QTY_CONTACTS</h2>
           <h3>Este ano: $CONTACTS_THIS_YEAR</h3>"
 
-    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>ObS</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
+    echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>Obs</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
 
     sqlite -separator ',' $SQDB "
            SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), 
@@ -143,6 +159,10 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
 
   if [ -z "$MODE" ] ; then MODE="FM" ; fi
   # Again - if no mode set, default to FM.
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
+  # Escape slashed callsigns to please sed
+
   cat $RECORD_FORM | sed -e "/Watt/d" \
                          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                          -e "s/\"F1f/$QRG\"/g" \
@@ -151,7 +171,12 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
                          -e "s/\"F4f/$CALLSIGN\"/g" \
                          -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
                          -e "s/F6f/ autofocus/g" \
-                         -e "s/\"F7f/$CALLSIGN\"/g"
+                         -e "s/\"F7f/$CALLSIGN\"/g" \
+			 -e "s/\"FAf/$CALLSIGN\"/g"
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
+  # Revert escaped slashed callsign
+
   echo "<table border><tr><td><b>QRG (MHz)</td><TD><B>Indicativo</td><td><b>Operador</td><td><b>QTR (GMT)</td><td><b>QTH</td><td><b>Modo</td><td><b>Serial</td><TD><B>Watts</b></td><TD><B>Obs.:</b></td><TD><B>His Sig</b></td><TD><B>My Sig</b></td></tr>"
   sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy 
                                FROM contacts WHERE op LIKE '%$CALLSIGN%' ORDER BY qtr DESC;" |
@@ -163,12 +188,11 @@ fi
 if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
 # Bail if no proper mode is selected
 
-if [[ $TX_POWER -lt 5 || $TX_POWER -gt 100 ]] ; then echo "Check Power - outside nominals" ; exit 1 ; fi
+if [[ $TX_POWER -lt $XCVR_MINP || $TX_POWER -gt $XCVR_MAXP ]] ; then echo "Check Power - outside nominals" ; exit 1 ; fi
 # Check for impossible power modes
 
-if [[ $TX_POWER -gt 40 && $MODE == "AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
-# My transceiver is only capable of 40W in AM mode
-# Fails if logging more than 40W in AM
+# AM Max Power
+if [[ $TX_POWER -gt $XCVR_AM_MAXP && $MODE == "AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
 
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
@@ -190,47 +214,14 @@ if ! [[ $SERIAL -ge 1 ]] ; then SERIAL=1 ; fi
 # If there's no serial number in SQLite database (new database),
 # declare serial as 1.
 
-# Sort out the band. Needed for LoTW or other frequency comparisons
-get_band() {
-FREQ_TEST=$(echo $1 | awk -F . '{print $1}')
-if   [[ $FREQ_TEST == "1" ]] ; then echo "160m"
-elif [[ $FREQ_TEST == "3" ]] ; then echo "80m"
-elif [[ $FREQ_TEST == "5" ]] ; then echo "60m"
-elif [[ $FREQ_TEST == "7" ]] ; then echo "40m"
-elif [[ $FREQ_TEST == "10" ]] ; then echo "30m"
-elif [[ $FREQ_TEST == "14" ]] ; then echo "20m"
-elif [[ $FREQ_TEST == "18" ]] ; then echo "17m"
-elif [[ $FREQ_TEST == "21" ]] ; then echo "15m"
-elif [[ $FREQ_TEST == "24" ]] ; then echo "12m"
-elif [[ $FREQ_TEST -ge "28" && $FREQ_TEST -lt "30" ]] ; then echo "10m"
-elif [[ $FREQ_TEST -ge "50" && $FREQ_TEST -lt "54" ]] ; then echo "6m"
-elif [[ $FREQ_TEST -ge "144" && $FREQ_TEST -lt "148" ]] ; then echo "2m"
-elif [[ $FREQ_TEST -ge "222" && $FREQ_TEST -lt "225" ]] ; then echo "1.25m"
-elif [[ $FREQ_TEST -ge "420" && $FREQ_TEST -lt "450" ]] ; then echo "70cm"
-elif [[ $FREQ_TEST -ge "902" && $FREQ_TEST -lt "928" ]] ; then echo "33cm"
-elif [[ $FREQ_TEST -ge "1240" && $FREQ_TEST -lt "1300" ]] ; then echo "23cm"
-elif [[ $FREQ_TEST -ge "2300" && $FREQ_TEST -lt "2450" ]] ; then echo "13cm"
-elif [[ $FREQ_TEST -ge "3300" && $FREQ_TEST -lt "3500" ]] ; then echo "9cm"
-elif [[ $FREQ_TEST -ge "5650" && $FREQ_TEST -lt "5925" ]] ; then echo "6cm"
-elif [[ $FREQ_TEST -ge "10000" && $FREQ_TEST -lt "10500" ]] ; then echo "3cm"
-elif [[ $FREQ_TEST -ge "24000" && $FREQ_TEST -lt "24250" ]] ; then echo "1.25cm"
-elif [[ $FREQ_TEST -ge "47000" && $FREQ_TEST -lt "47200" ]] ; then echo "6mm"
-elif [[ $FREQ_TEST -ge "75500" && $FREQ_TEST -lt "81000" ]] ; then echo "4mm"
-elif [[ $FREQ_TEST -ge "119980" && $FREQ_TEST -lt "120020" ]] ; then echo "2.5mm"
-elif [[ $FREQ_TEST -ge "142000" && $FREQ_TEST -lt "149000" ]] ; then echo "2mm"
-elif [[ $FREQ_TEST -ge "241000" && $FREQ_TEST -lt "250000" ]] ; then echo "1mm"
-else
-     echo "Could not match a valid band. Skipping record."
-     exit 1
-fi
-}
-
-BAND=$(get_band $QRG)
+if ! BAND=$(get_band $QRG) ; then echo "Wrong Band - check the frequency."; exit 1; fi
 
 # Detect wrong mode - if adding the "+" or "-", infer it's FT8.
 # But make an exception for JT65.
 if [[ $MODE != "JT65" ]]; then
-  if [[ $SIG_MY =~ "+" || $SIG_MY =~ "-" ]] || [[ $SIG_HIS =~ "+" || $SIG_HIS =~ "-" ]] && [[ $MODE != "WSPR" ]] ; then
+  if [[ $SIG_MY =~ "+" || $SIG_MY =~ "-" ]] ||
+     [[ $SIG_HIS =~ "+" || $SIG_HIS =~ "-" ]] &&
+     [[ $MODE != "WSPR" ]] ; then
      MODE=FT8
   fi
 fi
@@ -285,11 +276,12 @@ if [ $MODE == "WSPR" ] ; then
       echo "<H1>PREENCHIMENTO INCORRETO</H1>"
       exit 1
    fi
+
+# If filed something in "Contest" field, enter Contest Mode.
 elif [ -n "$CONTEST_ID" ] ; then
    # Require something in the Operator/Exchange field, otherwise stop.
    if [ -z "$OP" ] ; then echo "No Exchange data" ; exit 1 ; fi 
 
-   # If filed something in "Contest" field, enter Contest Mode.
    OBS=$(echo "$CONTEST_ID // TX $GRID")
    for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
       # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
@@ -300,12 +292,9 @@ elif [ -n "$CONTEST_ID" ] ; then
          exit 1
       fi      
    done
-   # Wipe out the OP field in contest mode, and use it as the place to 
-   # use it as the reporting field during contest mode. And append the
-   # exchange in OBS field.
+   # Append the exchange in OBS field.
    # TODO: A special Note field for Contest mode in eQSL logs.
    OBS="$OBS // $OP"
-   OP=""
    SIG_MY=59
    SIG_HIS=59
 
@@ -329,19 +318,39 @@ fi
 # Reuse fields from this QSO to the next one
 if [ -n "$CONTEST_ID" ] ; then
   # It's a contest. Replace "Operador" with "Exchange"
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
+  # Escape slashed callsigns to please sed
+
   cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
                          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                          -e "s/\"F2f/$TX_POWER\"/g" \
                          -e "s/\"F3f/$CONTEST_ID\"/g" \
                          -e "s/\"F4f/$CALLSIGN\"/g" \
                          -e "s/Operador/Exchange/g"
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
+  # Revert escaped slashed callsign
+
 else
   # Regular QSO - Non-Contest
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
+  # Escape slashed callsigns to please sed
+
   cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
                          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                          -e "s/\"F2f/$TX_POWER\"/g" \
-                         -e "s/\"F3f/$CONTEST_ID\"/g" \
-                         -e "s/\"F4f/$CALLSIGN\"/g"
+                         -e "s/\"F3f/$CONTEST_ID\"/g" 
+
+  if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
+  # Revert escaped slashed callsign
+
+fi
+
+# If a given callsign and a given frequency; set a specific note
+if [[ $CALLSIGN == "PY2EXU" && $QRG == "146.410" ]] ; then
+  OBS="RODADA ALTO FALANTE"
 fi
 
 # ===== 3RD PARTY SYSTEM LOG - String prep =====
