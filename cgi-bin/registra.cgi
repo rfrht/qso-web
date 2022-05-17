@@ -75,6 +75,15 @@ if [ "$BUTTON" == "QRZ" ] ; then
 elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
 # No callsign, no op name, no contest ID - this is a lookup request.
 
+  if [ -z "$(sqlite $SQDB "SELECT * FROM contacts WHERE callsign LIKE '${CALLSIGN:0:2}%")" ] ; then
+  # Check if is it an all-time new entity
+
+   echo "<table border="0" cellpadding="2" cellspacing="1" bgcolor="#ff0000">
+   <td valign="center">
+   <font face="verdana" size="+1" color="white"><B>ATNO</B>
+   </font></td></tr></table>"
+  fi
+
   QTY_CONTACTS=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN'")
   CONTACTS_THIS_YEAR=$(sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE callsign = '$CALLSIGN' 
                                   AND strftime('%Y',qtr,'unixepoch') = strftime('%Y','now');")
@@ -279,9 +288,6 @@ if [ $MODE == "WSPR" ] ; then
 
 # If filed something in "Contest" field, enter Contest Mode.
 elif [ -n "$CONTEST_ID" ] ; then
-   # Require something in the Operator/Exchange field, otherwise stop.
-   if [ -z "$OP" ] ; then echo "No Exchange data" ; exit 1 ; fi 
-
    OBS=$(echo "$CONTEST_ID // TX $GRID")
    for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
       # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
@@ -292,6 +298,10 @@ elif [ -n "$CONTEST_ID" ] ; then
          exit 1
       fi      
    done
+
+   # Require something in the Operator/Exchange field, otherwise stop.
+   if [ -z "$OP" ] ; then echo "No Exchange data" ; exit 1 ; fi
+
    # Append the exchange in OBS field.
    # TODO: A special Note field for Contest mode in eQSL logs.
    OBS="$OBS // $OP"
@@ -302,7 +312,7 @@ elif [ -n "$CONTEST_ID" ] ; then
    echo "<table border="0" cellpadding="2" cellspacing="1" bgcolor="#ff0000">
    <td valign="center">
    <font face="verdana" size="+1" color="white"><b>CONTEST -"
-   sqlite $SQDB "SELECT COUNT(*) FROM contacts WHERE obs LIKE '$CONTEST_ID%'"
+   sqlite $SQDB "SELECT 1 + COUNT(*) FROM contacts WHERE obs LIKE '$CONTEST_ID%'"
    echo " contacts</font>
    </td> </tr></table>"
 
@@ -341,7 +351,8 @@ else
   cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
                          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
                          -e "s/\"F2f/$TX_POWER\"/g" \
-                         -e "s/\"F3f/$CONTEST_ID\"/g" 
+                         -e "s/\"F3f/$CONTEST_ID\"/g" \
+			 -e "s/\"F4f/$CALLSIGN\"/g"
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
   # Revert escaped slashed callsign
