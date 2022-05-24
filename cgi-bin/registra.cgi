@@ -197,12 +197,6 @@ fi
 if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
 # Bail if no proper mode is selected
 
-if [[ $TX_POWER -lt $XCVR_MINP || $TX_POWER -gt $XCVR_MAXP ]] ; then echo "Check Power - outside nominals" ; exit 1 ; fi
-# Check for impossible power modes
-
-# AM Max Power
-if [[ $TX_POWER -gt $XCVR_AM_MAXP && $MODE == "AM" ]] ; then echo "Mais de 40W em AM?" ; exit 1 ; fi
-
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
 # If no date and time provided, get currenct date/time.
@@ -237,16 +231,35 @@ fi
 
 # Calculate propagation mode
 FREQKC=$(echo $QRG | tr -dc '[:digit:]')
-if [[ $FREQKC -ge 145200 && $FREQKC -le 145500 ]] ||
-   [[ $FREQKC -ge 146600 && $FREQKC -le 147400 ]]
+if [[ $FREQKC -ge  29620 && $FREQKC -le  29700 ]] ||
+   [[ $FREQKC -ge  51610 && $FREQKC -le  52000 ]] ||
+   [[ $FREQKC -ge 145200 && $FREQKC -le 145500 ]] ||
+   [[ $FREQKC -ge 146600 && $FREQKC -le 147400 ]] ||
+   [[ $FREQKC -ge 223850 && $FREQKC -le 225000 ]] ||
+   [[ $FREQKC -ge 439000 && $FREQKC -le 440000 ]]
 # It's a repeater! Set the right propagation mode.
 then
+   if [[ $MODE != "FM" ]] ; then echo "<h1>Wrong repeater mode ($MODE)?</h1>" ; exit 0 ; fi
    PROP_MODE="RPT"
 fi
 
-# My transceiver is only capable of 50W in VHF and UHF
-# Fails if logging more than 50W V/UHF
-if [[ $TX_POWER -gt 50 && $FREQKC -ge 144000 ]] ; then echo "Mais de 50W em V/U?" ; exit 1 ; fi
+# Check for impossible power modes
+if   [[ $FREQKC -gt 1800 && $FREQKC -lt 55000 ]] &&
+     [[ $TX_POWER -lt $XCVR_HF_MINP || $TX_POWER -gt $XCVR_HF_MAXP ]] ; then
+     echo Bad HF power settings
+     exit 1
+elif [[ $FREQKC -gt 55000  && $FREQKC -lt 300000 ]] &&
+     [[ $TX_POWER -lt $XCVR_VHF_MINP || $TX_POWER -gt $XCVR_VHF_MAXP ]] ; then
+     echo Bad VHF power settings
+     exit 1
+elif [[ $FREQKC -gt 300000 && $FREQKC -lt 3000000 ]] &&
+     [[ $TX_POWER -lt $XCVR_UHF_MINP || $TX_POWER -gt $XCVR_UHF_MAXP ]] ; then
+     echo Bad UHF power settings
+     exit 1
+elif [[ $TX_POWER -gt $XCVR_AM_MAXP && $MODE == "AM" ]] ; then 
+     echo "More than 40 Watts in AM?"
+     exit 1
+fi
 
 # Proper antenna selection
 if [[ $BAND == "2m" || $BAND == "70cm" ]] ; then
@@ -361,7 +374,7 @@ fi
 
 # If a given callsign and a given frequency; set a specific note
 if [[ $CALLSIGN == "PY2EXU" && $QRG == "146.410" ]] ; then
-  OBS="RODADA ALTO FALANTE"
+  OBS="RODADA ALTO FALANTE $OBS"
 fi
 
 # ===== 3RD PARTY SYSTEM LOG - String prep =====
