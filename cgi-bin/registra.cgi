@@ -43,6 +43,10 @@ if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
    ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
 fi
 
+if [[ $TX_POWER -le 5 ]] ; then
+   OBS="QRP $OBS"
+fi
+
 if [ "$BUTTON" == "QRZ" ] ; then
 # Was the QRZ button pressed? If it is, QRZ it.
 
@@ -241,6 +245,7 @@ if [[ $FREQKC -ge  29620 && $FREQKC -le  29700 ]] ||
 then
    if [[ $MODE != "FM" ]] ; then echo "<h1>Wrong repeater mode ($MODE)?</h1>" ; exit 0 ; fi
    PROP_MODE="RPT"
+   OBS="VIA $PROP_MODE $OBS"
 fi
 
 # Check for impossible power modes
@@ -388,7 +393,7 @@ ADIF_CLUBLOG=$(echo "email=$CLUBLOG_EMAIL&callsign=$MY_CALLSIGN&api=$CLUBLOG_KEY
 ADIF_HRD=$(echo "Callsign=$HRD_USER&Code=$HRD_KEY&App=PY2RAF-QSL&ADIFData=<qso_date:${#QSO_DATE}>$QSO_DATE<time_on:${#QSO_TIME}>$QSO_TIME<call:${#CALLSIGN}>$CALLSIGN<freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<lotw_qsl_sent:1>Y<EQSL_QSL_SENT:1>Y<qsl_sent:1>Y<qsl_sent_via:1>E<comment:${#EQSLMSG}>$EQSLMSG<band:${#BAND}>$BAND<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<EOR>")
 
 # EQSL
-EQSLMSG="TNX 4 QSO $OP - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73s o/"
+EQSLMSG="$(if [ -n "$PROP_MODE" ] ; then echo "Via $PROP_MODE - " ; fi )TNX 4 QSO $OP - ANT $ANTENNA - Rig FT-991A - TX $TX_POWER W$(if [[ $TX_POWER -le 5 ]] ; then echo " (QRP)"; fi) - SERnr $SERIAL - QRZ/ClubLog/LOTW OK - 73"
 ADIF_EQSL=$(echo "ADIFData=PY2RAF QSL upload<ADIF_VER:4>1.00<EQSL_USER:${#EQSL_USER}>$EQSL_USER<EQSL_PSWD:${#EQSL_PASS}>$EQSL_PASS<EOH><freq:${#QRG}>$QRG<mode:${#MODE}>$MODE<qso_date:${#QSO_DATE}>$QSO_DATE<call:${#CALLSIGN}>$CALLSIGN<time_on:${#QSO_TIME}>$QSO_TIME<qslmsg:${#EQSLMSG}>$EQSLMSG<station_callsign:${#MY_CALLSIGN}>$MY_CALLSIGN<stx:${#SERIAL}>$SERIAL<tx_pwr:${#TX_POWER}>$TX_POWER<rst_rcvd:${#SIG_MY}>$SIG_MY<rst_sent:${#SIG_HIS}>$SIG_HIS<prop_mode:${#PROP_MODE}>$PROP_MODE<contest_id:${#CONTEST_ID}>$CONTEST_ID<MY_GRIDSQUARE:${#GRID}>$GRID<eor>")
 
 # LotW
