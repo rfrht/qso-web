@@ -203,9 +203,14 @@ if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
 
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
-# If no date and time provided, get currenct date/time.
+# We provided a date and time. Parse it.
    EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
+   if [[ $EPOCH -gt $(TZ=UTC date +%s) ]] ; then
+      echo "Date/time is in the future"
+      exit 1
+   fi
 else
+# If no date and time provided, get current date/time.
    EPOCH=$(TZ=UTC date +%s)
 fi
 
