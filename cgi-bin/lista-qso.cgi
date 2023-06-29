@@ -30,7 +30,7 @@ date ; echo "<P>"
 
 cat $PAGE_HEADER
 
-sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
+sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, date(qtr,'unixepoch'), qth, mode, serial, power, obs, sighis, sigmy FROM contacts 
                              WHERE qtr >= $JAN AND qtr < $DEC ORDER BY qtr DESC" |
        awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td><TD>"$9"</td><TD>"$10"</td><TD>"$11"</td></tr>"}'
 

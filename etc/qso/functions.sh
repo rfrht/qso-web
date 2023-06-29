@@ -23,6 +23,12 @@ qrz_generate_new_key() {
 
 # Lookup for operator in QRZ database
 lookup_qrz() {
+  # Only proceed if is there a valid QRZ subscription
+  if [[ -z $QRZ_KEY ]] ; then
+     echo "No QRZ subscription"
+     exit 1
+  fi
+
   # Lookup for a key file. If doesnt exist, create a new one
   if ! [ -e $QRZ_KEY_FILE ] ; then
     qrz_generate_new_key
