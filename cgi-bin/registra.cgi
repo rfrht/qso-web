@@ -99,15 +99,15 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
     OP=$(sqlite $SQDB "SELECT op FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
     QTH=$(sqlite $SQDB "SELECT qth FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
 
-    if [ -z "$MODE" ] ; then MODE="FM" ; fi
-    # If we set no mode; default to FM.
-
     if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
-    # Escape slashed callsigns to please sed
+    # If it's a stroked callsign, ensure to escape it to please sed
 
-    cat $RECORD_FORM | sed -e "/Watt/d" \
+    if [ -z "$MODE" ] ; then
+    # If there was no mode, probably new entry. Default to FM. Autofocus to QRG.
+      MODE="FM"
+      cat $RECORD_FORM | sed -e "/Watt/d" \
                            -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                           -e "s/\"F1f/$QRG\"/g" \
+                           -e "s/\"F1f/\" autofocus/g" \
                            -e "s/\"F2f/$TX_POWER\"/g" \
                            -e "s/\"F3f/$CONTEST_ID\"/g" \
                            -e "s/\"F4f/$CALLSIGN\"/g" \
@@ -115,8 +115,24 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
                            -e "s/F6f/ value=\"$OP\"/g" \
                            -e "s/\"F7f/$CALLSIGN\"/g" \
                            -e "s/\"F8f/$QTH\"/g" \
-                           -e "s/F9f/ autofocus/g" \
+                           -e "s/F9f//g" \
 			   -e "s/\"FAf/$CALLSIGN\"/g"
+    
+    else
+    # There was already some mode set, autofocus to RST
+      cat $RECORD_FORM | sed -e "/Watt/d" \
+                             -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+                             -e "s/\"F1f/$QRG\"/g" \
+                             -e "s/\"F2f/$TX_POWER\"/g" \
+                             -e "s/\"F3f/$CONTEST_ID\"/g" \
+                             -e "s/\"F4f/$CALLSIGN\"/g" \
+                             -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+                             -e "s/F6f/ value=\"$OP\"/g" \
+                             -e "s/\"F7f/$CALLSIGN\"/g" \
+                             -e "s/\"F8f/$QTH\"/g" \
+                             -e "s/F9f/ autofocus/g" \
+                             -e "s/\"FAf/$CALLSIGN\"/g"
+    fi
 
     if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
     # Revert escaped slashed callsign
@@ -169,9 +185,10 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
 
     exit 0
   fi
+  # End the block if we had a previous contact.
 
   if [ -z "$MODE" ] ; then MODE="FM" ; fi
-  # Again - if no mode set, default to FM.
+  # No previous contacts. If no mode set, default to FM.
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
   # Escape slashed callsigns to please sed
@@ -407,13 +424,13 @@ if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW
   LOTW_STRIPPED_CERT=$(grep -v "\-\-\-" $LOTW_CERT)
   LOTW_QSO_DATE=$(TZ=UTC date +%F --date="@$EPOCH")
   LOTW_QSO_QTR=$(TZ=UTC date +%TZ --date="@$EPOCH")
-  LOTW_SIGN_DATA=$(echo -n "$LOTW_CQZ$GRID$LOTW_ITUZ$BAND$CALLSIGN$QRG$MODE$LOTW_QSO_DATE$LOTW_QSO_QTR")
+  LOTW_SIGN_DATA=$(echo -n "$LOTW_CQZ$GRID$LOTW_ITUZ${BAND^^}$CALLSIGN$QRG$MODE$LOTW_QSO_DATE$LOTW_QSO_QTR")
   LOTW_SIGNATURE=$(echo -n "$LOTW_SIGN_DATA" | openssl dgst -sha1 -sign $LOTW_KEY -passin "pass:$LOTW_KEY_PASS" | base64)
-  ADIF_LOTW=$(echo "<TQSL_IDENT:53>TQSL V2.5.1 Lib: V2.5 Config: V11.9 AllowDupes: false
+  ADIF_LOTW=$(echo "<TQSL_IDENT:53>TQSL V2.7.4 Lib: V2.5 Config: V11.29 AllowDupes: true
 
 <Rec_Type:5>tCERT
 <CERT_UID:1>1
-<CERTIFICATE:${#LOTW_STRIPPED_CERT}>$LOTW_STRIPPED_CERT
+<CERTIFICATE:$((${#LOTW_STRIPPED_CERT}+1))>$LOTW_STRIPPED_CERT
 <eor>
 
 <Rec_Type:8>tSTATION
@@ -434,7 +451,7 @@ if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW
 <FREQ:${#QRG}>$QRG
 <QSO_DATE:${#LOTW_QSO_DATE}>$LOTW_QSO_DATE
 <QSO_TIME:${#LOTW_QSO_QTR}>$LOTW_QSO_QTR
-<SIGN_LOTW_V2.0:${#LOTW_SIGNATURE}:6>$LOTW_SIGNATURE
+<SIGN_LOTW_V2.0:$((${#LOTW_SIGNATURE}+1)):6>$LOTW_SIGNATURE
 <SIGNDATA:${#LOTW_SIGN_DATA}>$LOTW_SIGN_DATA
 <eor>
 ")
