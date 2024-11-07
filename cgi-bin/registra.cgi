@@ -8,10 +8,10 @@ source /etc/qso/qso.conf
 source /etc/qso/functions.sh
 
 if [ $DEBUG == 1 ] ; then
-   exec 2>&1
-   set -e -x
-   set
-   env
+  exec 2>&1
+  set -e -x
+  set
+  env
 fi
 
 # Read the form POST and sanitize it
@@ -37,14 +37,14 @@ if [[ ! $REMOTE_ADDR =~ "172.16." ]] ; then
 # If my IP address doesn't come from my internal networks in SP,
 # use the ALT_GRID clause from qso.conf as my source TX
 # And declare the other antennas too.
-   GRID=$ALT_GRID
-   OBS="TX $ALT_GRID $OBS"
-   ANTENNA_HF="$ALT_ANTENNA_HF"
-   ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
+  GRID=$ALT_GRID
+  OBS="TX $ALT_GRID $OBS"
+  ANTENNA_HF="$ALT_ANTENNA_HF"
+  ANTENNA_VHF_UHF="$ALT_ANTENNA_VHF_UHF"
 fi
 
 if [[ $TX_POWER -le 5 ]] ; then
-   OBS="QRP $OBS"
+  OBS="QRP $OBS"
 fi
 
 if [ "$BUTTON" == "QRZ" ] ; then
@@ -58,23 +58,24 @@ if [ "$BUTTON" == "QRZ" ] ; then
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
   # Escape slashed callsigns to please sed
 
-  cat $RECORD_FORM | sed -e "/Watt/d" \
-                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                         -e "s/\"F1f/$QRG\"/g" \
-                         -e "s/\"F2f/$TX_POWER\"/g" \
-                         -e "s/\"F3f/$CONTEST_ID\"/g" \
-                         -e "s/\"F4f/$CALLSIGN\"/g" \
-                         -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
-                         -e "s/F6f/ value=\"$OP\"/g" \
-                         -e "s/\"F7f/$CALLSIGN\"/g" \
-                         -e "s/\"F8f/$QTH\"/g" \
-                         -e "s/F9f/ autofocus/g" \
-			 -e "s/\"FAf/$CALLSIGN\"/g"
+  sed -e "/Watt/d" \
+      -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+      -e "s/\"F1f/$QRG\"/g" \
+      -e "s/\"F2f/$TX_POWER\"/g" \
+      -e "s/\"F3f/$CONTEST_ID\"/g" \
+      -e "s/\"F4f/$CALLSIGN\"/g" \
+      -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+      -e "s/F6f/ value=\"$OP\"/g" \
+      -e "s/\"F7f/$CALLSIGN\"/g" \
+      -e "s/\"F8f/$QTH\"/g" \
+      -e "s/F9f/ autofocus/g" \
+      -e "s/\"FAf/$CALLSIGN\"/g" $RECORD_FORM
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
   # Revert escaped slashed callsign
 
   exit 0
+  # Stop here and do no further processing
 
 elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
 # No callsign, no op name, no contest ID - this is a lookup request.
@@ -93,7 +94,7 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
                                   AND strftime('%Y',qtr,'unixepoch') = strftime('%Y','now');")
 
   if [[ $QTY_CONTACTS -ge 1 ]] ; then
-  # We got some contacts. List them all. Fetch QSL sent QSL if any
+  # We got contact. List them all. Fetch QSL sent QSL if any
 
     QSLS=$(sqlite $SQDB "SELECT COUNT(*) FROM qsl WHERE callsign = '$CALLSIGN'")
     OP=$(sqlite $SQDB "SELECT op FROM contacts WHERE callsign = '$CALLSIGN' ORDER BY serial DESC LIMIT 1")
@@ -105,33 +106,33 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
     if [ -z "$MODE" ] ; then
     # If there was no mode, probably new entry. Default to FM. Autofocus to QRG.
       MODE="FM"
-      cat $RECORD_FORM | sed -e "/Watt/d" \
-                           -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                           -e "s/\"F1f/\" autofocus/g" \
-                           -e "s/\"F2f/$TX_POWER\"/g" \
-                           -e "s/\"F3f/$CONTEST_ID\"/g" \
-                           -e "s/\"F4f/$CALLSIGN\"/g" \
-                           -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
-                           -e "s/F6f/ value=\"$OP\"/g" \
-                           -e "s/\"F7f/$CALLSIGN\"/g" \
-                           -e "s/\"F8f/$QTH\"/g" \
-                           -e "s/F9f//g" \
-			   -e "s/\"FAf/$CALLSIGN\"/g"
+      sed -e "/Watt/d" \
+          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+          -e "s/\"F1f/\" autofocus/g" \
+          -e "s/\"F2f/$TX_POWER\"/g" \
+          -e "s/\"F3f/$CONTEST_ID\"/g" \
+          -e "s/\"F4f/$CALLSIGN\"/g" \
+          -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+          -e "s/F6f/ value=\"$OP\"/g" \
+          -e "s/\"F7f/$CALLSIGN\"/g" \
+          -e "s/\"F8f/$QTH\"/g" \
+          -e "s/F9f//g" \
+	  -e "s/\"FAf/$CALLSIGN\"/g" $RECORD_FORM
     
     else
     # There was already some mode set, autofocus to RST
-      cat $RECORD_FORM | sed -e "/Watt/d" \
-                             -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                             -e "s/\"F1f/$QRG\"/g" \
-                             -e "s/\"F2f/$TX_POWER\"/g" \
-                             -e "s/\"F3f/$CONTEST_ID\"/g" \
-                             -e "s/\"F4f/$CALLSIGN\"/g" \
-                             -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
-                             -e "s/F6f/ value=\"$OP\"/g" \
-                             -e "s/\"F7f/$CALLSIGN\"/g" \
-                             -e "s/\"F8f/$QTH\"/g" \
-                             -e "s/F9f/ autofocus/g" \
-                             -e "s/\"FAf/$CALLSIGN\"/g"
+      sed -e "/Watt/d" \
+          -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+          -e "s/\"F1f/$QRG\"/g" \
+          -e "s/\"F2f/$TX_POWER\"/g" \
+          -e "s/\"F3f/$CONTEST_ID\"/g" \
+          -e "s/\"F4f/$CALLSIGN\"/g" \
+          -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+          -e "s/F6f/ value=\"$OP\"/g" \
+          -e "s/\"F7f/$CALLSIGN\"/g" \
+          -e "s/\"F8f/$QTH\"/g" \
+          -e "s/F9f/ autofocus/g" \
+          -e "s/\"FAf/$CALLSIGN\"/g" $RECORD_FORM
     fi
 
     if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
@@ -188,21 +189,21 @@ elif [[ -n $CALLSIGN && -z $OP && -z $CONTEST_ID ]] ; then
   # End the block if we had a previous contact.
 
   if [ -z "$MODE" ] ; then MODE="FM" ; fi
-  # No previous contacts. If no mode set, default to FM.
+  # First contact. If no mode set, default to FM.
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
   # Escape slashed callsigns to please sed
 
-  cat $RECORD_FORM | sed -e "/Watt/d" \
-                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                         -e "s/\"F1f/$QRG\"/g" \
-                         -e "s/\"F2f/$TX_POWER\"/g" \
-                         -e "s/\"F3f/$CONTEST_ID\"/g" \
-                         -e "s/\"F4f/$CALLSIGN\"/g" \
-                         -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
-                         -e "s/F6f/ autofocus/g" \
-                         -e "s/\"F7f/$CALLSIGN\"/g" \
-			 -e "s/\"FAf/$CALLSIGN\"/g"
+  sed -e "/Watt/d" \
+      -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+      -e "s/\"F1f/$QRG\"/g" \
+      -e "s/\"F2f/$TX_POWER\"/g" \
+      -e "s/\"F3f/$CONTEST_ID\"/g" \
+      -e "s/\"F4f/$CALLSIGN\"/g" \
+      -e "s/\"F5f autofocus/\" value=\"$CALLSIGN\"/g" \
+      -e "s/F6f/ autofocus/g" \
+      -e "s/\"F7f/$CALLSIGN\"/g" \
+      -e "s/\"FAf/$CALLSIGN\"/g" $RECORD_FORM
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
   # Revert escaped slashed callsign
@@ -221,14 +222,14 @@ if [ $MODE == "RST" ] ; then echo "Selecione modo" ; exit 1 ; fi
 # Prepare the QSO date.
 if [[ -n $ALT_D && -n $ALT_T ]] ; then
 # We provided a date and time. Parse it.
-   EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
+  EPOCH=$(TZ=UTC date +%s --date="$ALT_D $ALT_T:00")
    if [[ $EPOCH -gt $(TZ=UTC date +%s) ]] ; then
-      echo "Date/time is in the future"
-      exit 1
+     echo "Date/time is in the future"
+     exit 1
    fi
 else
 # If no date and time provided, get current date/time.
-   EPOCH=$(TZ=UTC date +%s)
+  EPOCH=$(TZ=UTC date +%s)
 fi
 
 if [ -z $EPOCH ] ; then echo "Erro de Data" ; exit 1 ; fi
@@ -251,7 +252,7 @@ if [[ $MODE != "JT65" ]]; then
   if [[ $SIG_MY =~ "+" || $SIG_MY =~ "-" ]] ||
      [[ $SIG_HIS =~ "+" || $SIG_HIS =~ "-" ]] &&
      [[ $MODE != "WSPR" ]] ; then
-     MODE=FT8
+    MODE=FT8
   fi
 fi
 
@@ -265,104 +266,104 @@ if [[ $FREQKC -ge  29620 && $FREQKC -le  29700 ]] ||
    [[ $FREQKC -ge 439000 && $FREQKC -le 440000 ]]
 # It's a repeater! Set the right propagation mode.
 then
-   if [[ $MODE != "FM" ]] ; then echo "<h1>Wrong repeater mode ($MODE)?</h1>" ; exit 0 ; fi
-   PROP_MODE="RPT"
-   OBS="VIA $PROP_MODE $OBS"
+  if [[ $MODE != "FM" ]] ; then echo "<h1>Wrong repeater mode ($MODE)?</h1>" ; exit 0 ; fi
+  PROP_MODE="RPT"
+  OBS="VIA $PROP_MODE $OBS"
 fi
 
 # Check for impossible power modes
 if   [[ $FREQKC -gt 1800 && $FREQKC -lt 55000 ]] &&
      [[ $TX_POWER -lt $XCVR_HF_MINP || $TX_POWER -gt $XCVR_HF_MAXP ]] ; then
-     echo Bad HF power settings
-     exit 1
+  echo Bad HF power settings
+  exit 1
 elif [[ $FREQKC -gt 55000  && $FREQKC -lt 300000 ]] &&
      [[ $TX_POWER -lt $XCVR_VHF_MINP || $TX_POWER -gt $XCVR_VHF_MAXP ]] ; then
-     echo Bad VHF power settings
-     exit 1
+  echo Bad VHF power settings
+  exit 1
 elif [[ $FREQKC -gt 300000 && $FREQKC -lt 3000000 ]] &&
      [[ $TX_POWER -lt $XCVR_UHF_MINP || $TX_POWER -gt $XCVR_UHF_MAXP ]] ; then
-     echo Bad UHF power settings
-     exit 1
+  echo Bad UHF power settings
+  exit 1
 elif [[ $TX_POWER -gt $XCVR_AM_MAXP && $MODE == "AM" ]] ; then 
-     echo "More than 40 Watts in AM?"
-     exit 1
+  echo "More than 40 Watts in AM?"
+  exit 1
 fi
 
 # Proper antenna selection
 if [[ $BAND == "2m" || $BAND == "70cm" ]] ; then
-   ANTENNA=$ANTENNA_VHF_UHF
+  ANTENNA=$ANTENNA_VHF_UHF
 else
-   ANTENNA=$ANTENNA_HF
+  ANTENNA=$ANTENNA_HF
 fi
 
 # Stop logging if missing essential fields
 if [[ -z $QRG || -z $CALLSIGN || -z $MODE ]] || 
    [[ ( -z $SIG_MY || -z $SIG_HIS ) && $MODE == "FT8" ]]
 then
-   echo "<h1>FALTOU CAMPO ESSENCIAL</h1>"
-   # Reuse this QSO data in new contact form
-   cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
-   exit 0
+  echo "<h1>FALTOU CAMPO ESSENCIAL</h1>"
+  # Reuse this QSO data in new contact form
+  sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g" $RECORD_FORM
+  exit 0
 # Avoids logging FM contacts in HF frequencies
 elif [[ $FREQKC -lt "29000" && $MODE == "FM" ]] ; then
-   echo "<h1>FM em HF?</h1>"
-   # Reuse this QSO data in new contact form
-   cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
-   exit 0
+  echo "<h1>FM em HF?</h1>"
+  # Reuse this QSO data in new contact form
+  sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g" $RECORD_FORM
+  exit 0
 # Avoids logging SSB contacts in high 2m frequencies
 elif [[ $FREQKC -gt "144800" && $FREQKC -lt "148000" && $MODE == "SSB" ]] ; then
-   echo "<h1>SSB em 2m?</h1>"
-   # Reuse this QSO data in new contact form
-   cat $RECORD_FORM | sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g"
-   exit 0
+  echo "<h1>SSB em 2m?</h1>"
+  # Reuse this QSO data in new contact form
+  sed -e "s/\"Ff/$QRG\"/g" -e "s/\"$MODE\"/\"$MODE\" checked/g" -e "s/\"15\"/\"$TX_POWER\"/g" $RECORD_FORM
+  exit 0
 fi
 
 # Prepare the notes field, if the RST was provided or not.
 ## Special sauce for WSPR
 if [ $MODE == "WSPR" ] ; then
-   # Requires remote Received signal and power at 5W (FT-991A minimum TX Power)
-   if ! [[ -z $SIG_MY && -n $SIG_HIS ]] && [[ $TX_POWER == 5 ]] ; then
-      echo "<H1>PREENCHIMENTO INCORRETO</H1>"
-      exit 1
-   fi
+  # Requires remote Received signal and power at 5W (FT-991A minimum TX Power)
+  if ! [[ -z $SIG_MY && -n $SIG_HIS ]] && [[ $TX_POWER == 5 ]] ; then
+    echo "<H1>PREENCHIMENTO INCORRETO</H1>"
+    exit 1
+  fi
 
 # If filed something in "Contest" field, enter Contest Mode.
 elif [ -n "$CONTEST_ID" ] ; then
-   OBS=$(echo "$CONTEST_ID // TX $GRID")
-   for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
-      # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
-      CONTACT_FREQ=$(sqlite $SQDB "SELECT qrg FROM contacts WHERE serial = '$i'")
-      CONTACT_MODE=$(sqlite $SQDB "SELECT mode FROM contacts WHERE serial = '$i'")
-      if [[ $(get_band $CONTACT_FREQ) == $(get_band $QRG) ]] && [[ $CONTACT_MODE == $MODE ]] ; then
-         echo "This is a dupe."
-         exit 1
-      fi      
-   done
+  OBS=$(echo "$CONTEST_ID // TX $GRID")
+  for i in $(sqlite $SQDB "SELECT serial FROM contacts WHERE callsign = '$CALLSIGN' AND obs LIKE '$OBS%'") ; do
+  # Look for duplicates. Seems we found one. Get the contact frequency, mode and compare them.
+    CONTACT_FREQ=$(sqlite $SQDB "SELECT qrg FROM contacts WHERE serial = '$i'")
+    CONTACT_MODE=$(sqlite $SQDB "SELECT mode FROM contacts WHERE serial = '$i'")
+    if [[ $(get_band $CONTACT_FREQ) == $(get_band $QRG) ]] && [[ $CONTACT_MODE == $MODE ]] ; then
+      echo "This is a dupe."
+      exit 1
+    fi      
+  done
 
-   # Require something in the Operator/Exchange field, otherwise stop.
-   if [ -z "$OP" ] ; then echo "No Exchange data" ; exit 1 ; fi
+  # Require something in the Operator/Exchange field, otherwise stop.
+  if [ -z "$OP" ] ; then echo "No Exchange data" ; exit 1 ; fi
 
-   # Append the exchange in OBS field.
-   # TODO: A special Note field for Contest mode in eQSL logs.
-   OBS="$OBS // $OP"
-   SIG_MY=59
-   SIG_HIS=59
+  # Append the exchange in OBS field.
+  # TODO: A special Note field for Contest mode in eQSL logs.
+  OBS="$OBS // $OP"
+  SIG_MY=59
+  SIG_HIS=59
 
-   # Print Contest mode banner
-   echo "<table border="0" cellpadding="2" cellspacing="1" bgcolor="#ff0000">
-   <td valign="center">
-   <font face="verdana" size="+1" color="white"><b>CONTEST -"
-   sqlite $SQDB "SELECT 1 + COUNT(*) FROM contacts WHERE obs LIKE '$CONTEST_ID%'"
-   echo " contacts</font>
-   </td> </tr></table>"
+  # Print Contest mode banner
+  echo "<table border="0" cellpadding="2" cellspacing="1" bgcolor="#ff0000">
+  <td valign="center">
+  <font face="verdana" size="+1" color="white"><b>CONTEST -"
+  sqlite $SQDB "SELECT 1 + COUNT(*) FROM contacts WHERE obs LIKE '$CONTEST_ID%'"
+  echo " contacts</font>
+  </td> </tr></table>"
 
 elif [ $MODE == "FT8" ] ; then
-   # Special sauce for FT8
-   if [[ $SIG_MY -ge 25 || $SIG_HIS -ge 25 ]] ; then
-      # Avoid FT8 logs with more than 25 dB; probably on error
-      echo "<h1>MAIS DE 25 dB EM FT8???</h1>"
-      exit 1
-   fi
+  # Special sauce for FT8
+  if [[ $SIG_MY -ge 25 || $SIG_HIS -ge 25 ]] ; then
+    # Avoid FT8 logs with more than 25 dB; probably on error
+    echo "<h1>MAIS DE 25 dB EM FT8???</h1>"
+    exit 1
+  fi
 fi
 
 # Reuse fields from this QSO to the next one
@@ -372,12 +373,12 @@ if [ -n "$CONTEST_ID" ] ; then
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
   # Escape slashed callsigns to please sed
 
-  cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
-                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                         -e "s/\"F2f/$TX_POWER\"/g" \
-                         -e "s/\"F3f/$CONTEST_ID\"/g" \
-                         -e "s/\"F4f/$CALLSIGN\"/g" \
-                         -e "s/Operador/Exchange/g"
+  sed -e "s/\"F1f/$QRG\"/g" \
+      -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+      -e "s/\"F2f/$TX_POWER\"/g" \
+      -e "s/\"F3f/$CONTEST_ID\"/g" \
+      -e "s/\"F4f/$CALLSIGN\"/g" \
+      -e "s/Operador/Exchange/g" $RECORD_FORM
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
   # Revert escaped slashed callsign
@@ -388,15 +389,14 @@ else
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\//\\\//g') ; fi
   # Escape slashed callsigns to please sed
 
-  cat $RECORD_FORM | sed -e "s/\"F1f/$QRG\"/g" \
-                         -e "s/\"$MODE\"/\"$MODE\" checked/g" \
-                         -e "s/\"F2f/$TX_POWER\"/g" \
-                         -e "s/\"F3f/$CONTEST_ID\"/g" \
-			 -e "s/\"F4f/$CALLSIGN\"/g"
+  sed -e "s/\"F1f/$QRG\"/g" \
+      -e "s/\"$MODE\"/\"$MODE\" checked/g" \
+      -e "s/\"F2f/$TX_POWER\"/g" \
+      -e "s/\"F3f/$CONTEST_ID\"/g" \
+      -e "s/\"F4f/$CALLSIGN\"/g" $RECORD_FORM
 
   if [[ $CALLSIGN =~ "/" ]] ; then CALLSIGN=$(echo $CALLSIGN | sed -e 's/\\\//\//g') ; fi
   # Revert escaped slashed callsign
-
 fi
 
 # If a given callsign and a given frequency; set a specific note
@@ -461,25 +461,25 @@ if [[ -n $LOTW_CERT && -n $LOTW_KEY_PASS && -n $LOTW_CQZ && -n $GRID && -n $LOTW
 fi
 
 if [ $DEBUG == 1 ] ; then
-   echo "Modo Debug - Testes escritos"
-   echo "$ADIF_QRZ" >> $QRZ_ERRLOG
-   echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
-   echo "$ADIF_HRD" >> $HRD_ERRLOG
-   echo "$ADIF_EQSL" >> $EQSL_ERRLOG
-   echo "INSERT INTO contacts (qrg, callsign, op, qtr, qth, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$QTH','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" > /dev/shm/transaction-sqlite.log
+  echo "Modo Debug - Testes escritos"
+  echo "$ADIF_QRZ" >> $QRZ_ERRLOG
+  echo "$ADIF_CLUBLOG" >> $CLUBLOG_ERRLOG
+  echo "$ADIF_HRD" >> $HRD_ERRLOG
+  echo "$ADIF_EQSL" >> $EQSL_ERRLOG
+  echo "INSERT INTO contacts (qrg, callsign, op, qtr, qth, mode, power, propagation, sighis, sigmy) VALUES ('$QRG','$CALLSIGN','$OP','$EPOCH','$QTH','$MODE','$TX_POWER','$PROP_MODE','$SIG_MY','$SIG_HIS')" > /dev/shm/transaction-sqlite.log
 
-   sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power FROM contacts 
+  sqlite -separator ',' $SQDB "SELECT qrg, callsign, op, datetime(qtr,'unixepoch'), qth, mode, serial, power FROM contacts 
                                 ORDER BY qtr DESC LIMIT 20" |
-   awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
+  awk -F , '{print "<tr><TD>"$1"</td><TD>"$2"</td><TD>"$3"</td><TD>"$4"</td><TD>"$5"</td><TD>"$6"</td><TD>"$7"</td><TD>"$8"</td></tr>"}'
 
-   exit 0
+  exit 0
 fi
 
 # ===== LOG CONTACTS =====
 # Log it locally in CSV
 if ! echo $QRG,$CALLSIGN,$OP,$QTR,$QTH,$MODE,$SERIAL,$TX_POWER,$PROP_MODE >> $QSO_LOGFILE ; then
-   echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
-   exit 1
+  echo "<H1>Error Writing Local Log File $QSO_LOGFILE</h1>"
+  exit 1
 fi
 
 # Logs the contact in SQLite DB
